@@ -2,6 +2,7 @@ module location_scale_tdist
 
 using LinearAlgebra
 using Distributions
+using RxInfer
 using SpecialFunctions
 
 export LocationScaleT, MvLocationScaleT, pdf, logpdf, params, dims
@@ -35,6 +36,44 @@ mutable struct MvLocationScaleT <: ContinuousMultivariateDistribution
         return new(ν, μ, Σ)
     end
 end
+
+@node LocationScaleT Stochastic [out,ν,μ,σ2]
+@node MvLocationScaleT Stochastic [out,ν,μ,Σ]
+
+# Rule specification
+@rule LocationScaleT(:out, Marginalisation) (ν::PointMass, μ::NormalDistributionsFamily, σ2::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule LocationScaleT(:ν, Marginalisation) (out::PointMass, μ::NormalDistributionsFamily, σ2::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule LocationScaleT(:μ, Marginalisation) (out::PointMass, ν::PointMass, σ2::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule LocationScaleT(:σ, Marginalisation) (out::PointMass, ν:PointMass, μ::NormalDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule MvLocationScaleT(:out, Marginalisation) (ν::PointMass, μ::NormalDistributionsFamily, Σ::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule MvLocationScaleT(:ν, Marginalisation) (out::PointMass, μ::NormalDistributionsFamily, Σ::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule MvLocationScaleT(:μ, Marginalisation) (out::PointMass, ν::PointMass, Σ::GammaDistributionsFamily) = begin
+    return error("todo")
+end 
+
+@rule MvLocationScaleT(:Σ, Marginalisation) (out::PointMass, ν:PointMass, μ::NormalDistributionsFamily) = begin
+    return error("todo")
+end 
+
+# Methods
 
 params(p::LocationScaleT) = (p.ν, p.μ, p.σ)
 params(p::MvLocationScaleT) = (p.ν, p.μ, p.Σ)
