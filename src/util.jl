@@ -18,3 +18,13 @@ function lowpass(x::Vector; order=1, Wn=1.0, fs=1.0)
 
     return filt(b,a, x), a,b
 end
+
+function extract(d::Dict)
+    "Define variables key = value for all elements of Dict."
+    expr = quote end
+    for (k, v) in d
+        push!(expr.args, :($(Symbol(k)) = $v))
+    end
+    eval(expr)
+    return
+end
