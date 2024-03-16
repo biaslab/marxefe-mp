@@ -6,6 +6,10 @@ Wouter M. Kouw
 2024-mar-11
 """
 
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+
 using Revise
 using LinearAlgebra
 using Distributions
@@ -14,9 +18,11 @@ using ExponentialFamily
 using Plots
 default(label="")
 includet("../systems/Pendulums.jl"); using .Pendulums
-includet("../src/nuv_box.jl");
-includet("../src/diode.jl");
+# includet("../src/nuv_box.jl");
+# includet("../src/diode.jl");
 # includet("../src/buffer.jl");
+includet("../nodes/mv_normal_gamma.jl")
+includet("../nodes/arx.jl")
 
 ## System specification
 
@@ -63,3 +69,54 @@ plot!(tsteps, torques[:], color="purple")
 p10 = plot(p11,p12, layout=grid(2,1, heights=[0.7, 0.3]), size=(900,600))
 
 savefig(p10, "experiments/figures/simsys.png")
+
+## Online system identification
+
+@model function ARXID()
+
+    yk = datavar(Vector{Float64})
+    xk = datavar(Vector{Float64})
+    μk = datavar(Vector{Float64})
+    Λk = datavar(Matrix{Float64})
+    αk = datavar(Float64)
+    βk = datavar(Float64)
+
+    # Parameter prior
+    ζ ~ MvNormalGamma(μk,Λk,αk,βk)
+
+    # Autoregressive likelihood
+    yk ~ ARX(xk,ζ)
+end
+
+My = 2
+Mu = 0
+M = My+Mu+1
+ybuffer = zeros(My)
+ubuffer = zeros(Mu+1)
+yk = observations[1]
+FE = zeros(N)
+
+for k = 1:N-1
+
+    # Full buffer
+    xk = [ybuffer; ubuffer]
+
+    # Extract parameters
+    μk,Λk,αk,βk = params(post[:ζ])
+
+    # Update parameter belief
+    (results,post) = infer(
+        model = ARXID(),
+        data = (yk = yk, xk = xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
+        free_energy = true,
+    )
+
+    # Keep track of free energy
+    FE[k] = results.free_energy
+
+    # Update buffers
+    yk = observations[k+1]
+    ybuffer = backshift(ybuffer,observations[k])
+    ubuffer = backshift(ubuffer,torques[k])
+
+end
