@@ -1,13 +1,12 @@
-module location_scale_tdist
+export LocationScaleT, MvLocationScaleT
 
 using LinearAlgebra
 using Distributions
 using RxInfer
 using SpecialFunctions
 
-export LocationScaleT, MvLocationScaleT, pdf, logpdf, params, dims
 
-mutable struct LocationScaleT <: ContinuousUnivariateDistribution
+struct LocationScaleT <: ContinuousUnivariateDistribution
  
     ν ::Real
     μ ::Real
@@ -22,7 +21,7 @@ mutable struct LocationScaleT <: ContinuousUnivariateDistribution
     end
 end
 
-mutable struct MvLocationScaleT <: ContinuousMultivariateDistribution
+struct MvLocationScaleT <: ContinuousMultivariateDistribution
  
     ν ::Real
     μ ::Vector
@@ -36,9 +35,6 @@ mutable struct MvLocationScaleT <: ContinuousMultivariateDistribution
         return new(ν, μ, Σ)
     end
 end
-
-@node LocationScaleT Stochastic [out,ν,μ,σ2]
-@node MvLocationScaleT Stochastic [out,ν,μ,Σ]
 
 # Rule specification
 @rule LocationScaleT(:out, Marginalisation) (ν::PointMass, μ::NormalDistributionsFamily, σ2::GammaDistributionsFamily) = begin

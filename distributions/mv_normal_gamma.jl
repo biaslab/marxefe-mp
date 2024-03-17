@@ -1,12 +1,11 @@
-module mv_normal_gamma
+export MvNormalGamma
 
+using BayesBase
 using LinearAlgebra
 using Distributions
 using SpecialFunctions
 
-export MvNormalGamma, pdf, logpdf, params, dimensions
-
-mutable struct MvNormalGamma <: ContinuousMultivariateDistribution
+struct MvNormalGamma <: ContinuousMultivariateDistribution
  
     D ::Integer
     μ ::Vector
@@ -31,22 +30,28 @@ mutable struct MvNormalGamma <: ContinuousMultivariateDistribution
     end
 end
 
-function dims(p::MvNormalGamma)
-    return p.D
-end
+BayesBase.dims(d::MvNormalGamma) = d.D
+BayesBase.params(d::MvNormalGamma) = (d.μ, d.Λ, d.α, d.β)
 
-function params(p::MvNormalGamma)
-    return p.μ, p.Λ, p.α, p.β
-end
-
-function pdf(p::MvNormalGamma, θ, τ)
-    μ, Λ, α, β = params(p)
+function BayesBase.pdf(dist::MvNormalGamma, x::Vector)
+    μ, Λ, α, β = params(dist)
+    θ = x[1:end-1]
+    τ = x[end]
     return det(Λ)^(1/2) * (2π)^(-p.D/2)*β^α/gamma(α)*τ^(α+p.D/2-1)*exp( -τ/2*((θ-μ)'*Λ*(θ-μ) +2β) )
 end
 
-function logpdf(p::MvNormalGamma, θ, τ)
-    μ, Λ, α, β = params(p)
+function BayesBase.logpdf(dist::MvNormalGamma, x::Vector)
+    μ, Λ, α, β = params(dist)
+    θ = x[1:end-1]
+    τ = x[end]
     return 1/2*logdet(Λ) -p.D/2*log(2π) + α*log(β) - log(gamma(α)) +(α+p.D/2-1)*log(τ) -τ/2*((θ-μ)'*Λ*(θ-μ) +2β)
 end
 
+BayesBase.default_prod_rule(::Type{<:MvNormalGamma}, ::Type{<:MvNormalGamma}) = PreserveTypeProd(Distribution)
+
+function BayesBase.prod(::PreserveTypeProd{Distribution}, left::MvNormalGamma, right::MvNormalGamma)
+    μl, Λl, αl, βl = params(left)
+    μr, Λr, αr, βr = params(right)
+
+    return MvNormalGamma(μ, Λ, α, β)
 end
