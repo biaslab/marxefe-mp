@@ -1,6 +1,6 @@
 export MvNormalGamma
 
-using BayesBase
+import BayesBase
 using LinearAlgebra
 using Distributions
 using SpecialFunctions
