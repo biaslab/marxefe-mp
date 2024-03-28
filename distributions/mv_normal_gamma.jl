@@ -1,37 +1,41 @@
-export MvNormalGamma
+# export MvNormalGamma, params
 
 import BayesBase
 using LinearAlgebra
 using Distributions
 using SpecialFunctions
 
-struct MvNormalGamma <: ContinuousMultivariateDistribution
+struct MvNormalGamma{T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real, B <: Real} <: ContinuousMultivariateDistribution
  
-    D ::Integer
-    μ ::Vector
-    Λ ::Matrix
-    α ::Real
-    β ::Real
+    μ::M # Mean
+    Λ::L # Precision
+    α::A # Shape
+    β::B # Rate   
 
-    function MvNormalGamma(mean::Vector, precision_matrix::Matrix, shape::Float64, rate::Float64)
+    function MvNormalGamma(μ::M, Λ::L, α::A, β::B) where {T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real, B <: Real}
         
-        if shape <= 0.0; error("Shape parameter must be positive."); end
-        if rate <= 0.0;  error("Rate parameter must be positive."); end
+        if α <= 0.0; error("Shape parameter must be positive."); end
+        if β <= 0.0; error("Rate parameter must be positive."); end
         
-        dimensions = length(mean)
-        if size(precision_matrix, 1) != dimensions
+        dimensions = length(μ)
+        if size(Λ, 1) != dimensions
             error("Number of rows of precision matrix does not match mean vector length.")
         end
-        if size(precision_matrix, 2) != dimensions
+        if size(Λ, 2) != dimensions
             error("Number of columns of precision matrix does not match mean vector length.")
         end
 
-        return new(dimensions, mean, precision_matrix, shape, rate)
+        return new{T,M,L,A,B}(μ,Λ,α,β)
     end
 end
 
-BayesBase.dims(d::MvNormalGamma) = d.D
+BayesBase.dim(d::MvNormalGamma) = d.D
 BayesBase.params(d::MvNormalGamma) = (d.μ, d.Λ, d.α, d.β)
+BayesBase.mean(d::MvNormalGamma) = d.μ
+BayesBase.precision(d::MvNormalGamma) = d.Λ
+BayesBase.cov(d::MvNormalGamma) = cholinv(d.Λ)
+BayesBase.shape(d::MvNormalGamma) = d.α
+BayesBase.rate(d::MvNormalGamma) = d.β
 
 function BayesBase.pdf(dist::MvNormalGamma, x::Vector)
     μ, Λ, α, β = params(dist)
@@ -50,8 +54,13 @@ end
 BayesBase.default_prod_rule(::Type{<:MvNormalGamma}, ::Type{<:MvNormalGamma}) = PreserveTypeProd(Distribution)
 
 function BayesBase.prod(::PreserveTypeProd{Distribution}, left::MvNormalGamma, right::MvNormalGamma)
-    μl, Λl, αl, βl = params(left)
-    μr, Λr, αr, βr = params(right)
+    μl, Λl, αl, βl = RxInfer.params(left)
+    μr, Λr, αr, βr = RxInfer.params(right)
+
+    Λ = Λl + Λr
+    μ = inv(Λ)*(Λl*μl + Λr*μr)
+    α = αl + αr -1
+    β = βl + βr
 
     return MvNormalGamma(μ, Λ, α, β)
 end

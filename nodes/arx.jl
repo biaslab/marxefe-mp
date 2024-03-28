@@ -13,18 +13,21 @@ end
 
 @rule ARX(:x, Marginalisation) (q_out::PointMass, q_ζ::MvNormalGamma) = begin
     
-    return NormalMeanPrecision()
+    return NormalMeanPrecision(0.,1.)
 end
 
 @rule ARX(:ζ, Marginalisation) (q_out::PointMass, q_x::PointMass) = begin
 
-    mx = mean(q_x)
     my = mean(q_out)
+    mx = mean(q_x)
+    D  = length(mx)
 
-    μ = inv(mx*mx')*(mx*my)
+    imxmx = inv(mx*mx' + 1e-8diagm(ones(D)))
+
+    μ = imxmx*(mx*my)
     Λ = mx*mx'
-    α = 1/2
-    β = 1/2*(my^2 - (mx*my)'*inv(mx*mx')*(mx*my))
+    α = 1.0
+    β = 1/2*(my^2 - (my*mx')*imxmx*(mx*my)) + 1e-8
     
     return MvNormalGamma(μ,Λ,α,β)
 end

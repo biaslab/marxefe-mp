@@ -21,8 +21,13 @@ includet("../systems/Pendulums.jl"); using .Pendulums
 # includet("../src/nuv_box.jl");
 # includet("../src/diode.jl");
 # includet("../src/buffer.jl");
+includet("../distributions/mv_normal_gamma.jl")
+includet("../distributions/location_scale_tdist.jl")
 includet("../nodes/mv_normal_gamma.jl")
+# includet("../nodes/location_scale_tdist.jl")
+includet("../nodes/mv_location_scale_tdist.jl")
 includet("../nodes/arx.jl")
+includet("../src/util.jl")
 
 ## System specification
 
@@ -74,7 +79,7 @@ savefig(p10, "experiments/figures/simsys.png")
 
 @model function ARXID()
 
-    yk = datavar(Vector{Float64})
+    yk = datavar(Float64)
     xk = datavar(Vector{Float64})
     μk = datavar(Vector{Float64})
     Λk = datavar(Matrix{Float64})
@@ -88,31 +93,29 @@ savefig(p10, "experiments/figures/simsys.png")
     yk ~ ARX(xk,ζ)
 end
 
-My = 2
+My = 1
 Mu = 0
 M = My+Mu+1
 ybuffer = zeros(My)
 ubuffer = zeros(Mu+1)
 yk = observations[1]
-FE = zeros(N)
 
+pζ = MvNormalGamma(ones(M), 10diagm(ones(M)), 2., 10.)
+     
 for k = 1:N-1
 
     # Full buffer
     xk = [ybuffer; ubuffer]
 
     # Extract parameters
-    μk,Λk,αk,βk = params(post[:ζ])
+    μk,Λk,αk,βk = BayesBase.params(pζ)
 
     # Update parameter belief
-    (results,post) = infer(
+    results = infer(
         model = ARXID(),
-        data = (yk = yk, xk = xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
-        free_energy = true,
+        data = (yk=yk, xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
     )
-
-    # Keep track of free energy
-    FE[k] = results.free_energy
+    pζ = results.posteriors[:ζ]
 
     # Update buffers
     yk = observations[k+1]
