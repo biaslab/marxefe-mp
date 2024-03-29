@@ -93,6 +93,23 @@ savefig(p10, "experiments/figures/simsys.png")
     yk ~ ARX(xk,ζ)
 end
 
+@model function ARXPred()
+
+    yk = datavar(Float64) where { allow_missing = true }
+    xk = datavar(Vector{Float64})
+    μk = datavar(Vector{Float64})
+    Λk = datavar(Matrix{Float64})
+    αk = datavar(Float64)
+    βk = datavar(Float64)
+
+    # Parameter prior
+    ζ ~ MvNormalGamma(μk,Λk,αk,βk)
+
+    # Autoregressive likelihood
+    yk ~ ARX(xk,ζ)
+
+end
+
 My = 1
 Mu = 0
 M = My+Mu+1
@@ -100,26 +117,46 @@ ybuffer = zeros(My)
 ubuffer = zeros(Mu+1)
 yk = observations[1]
 
-pζ = MvNormalGamma(ones(M), 10diagm(ones(M)), 2., 10.)
+ppy = []
+pζ  = [MvNormalGamma(ones(M), 10diagm(ones(M)), 2., 10.)]
      
-for k = 1:N-1
+for k = 1:N
 
     # Full buffer
     xk = [ybuffer; ubuffer]
 
     # Extract parameters
-    μk,Λk,αk,βk = BayesBase.params(pζ)
+    μk,Λk,αk,βk = BayesBase.params(pζ[end])
+
+    # Make prediction
+    results = infer(
+        model = ARXPred(),
+        data = (yk=missing, xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
+    )
+    push!(ppy, results.predictions[:yk])
+
+    # Observe output
+    yk = observations[k]
 
     # Update parameter belief
     results = infer(
         model = ARXID(),
         data = (yk=yk, xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
     )
-    pζ = results.posteriors[:ζ]
+    push!(pζ, results.posteriors[:ζ])
 
-    # Update buffers
-    yk = observations[k+1]
+    # Update buffers    
     ybuffer = backshift(ybuffer,observations[k])
     ubuffer = backshift(ubuffer,torques[k])
 
 end
+
+
+p20 = plot(ylabel="angle")
+plot!(tsteps, states[1,:], color="blue", label="state")
+scatter!(tsteps, observations, color="black", label="measurements")
+plot!(tsteps, mean.(ppy), ribbon=std.(ppy), color="purple", label="predictions")
+
+savefig(p20, "experiments/figures/pred-idsys.png")
+
+

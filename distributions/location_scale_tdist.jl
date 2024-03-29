@@ -1,5 +1,4 @@
-export LocationScaleT, MvLocationScaleT
-
+import BayesBase
 using LinearAlgebra
 using Distributions
 using RxInfer
@@ -8,9 +7,9 @@ using SpecialFunctions
 
 struct LocationScaleT <: ContinuousUnivariateDistribution
  
-    ν ::Real
-    μ ::Real
-    σ ::Real
+    ν  ::Real
+    μ  ::Real
+    σ  ::Real
 
     function LocationScaleT(ν::Float64, μ::Float64, σ::Float64)
         
@@ -71,10 +70,13 @@ end
 
 # Methods
 
-params(p::LocationScaleT) = (p.ν, p.μ, p.σ)
-params(p::MvLocationScaleT) = (p.ν, p.μ, p.Σ)
-
-dims(p::MvLocationScaleT) = length(p.μ)
+BayesBase.params(p::LocationScaleT) = (p.ν, p.μ, p.σ)
+BayesBase.params(p::MvLocationScaleT) = (p.ν, p.μ, p.Σ)
+BayesBase.dims(p::MvLocationScaleT) = length(p.μ)
+BayesBase.mean(p::LocationScaleT) = p.μ
+BayesBase.std(p::LocationScaleT) = p.σ
+BayesBase.var(p::LocationScaleT) = p.σ^2
+BayesBase.precision(p::LocationScaleT) = inv(p.σ^2)
 
 function pdf(p::LocationScaleT, x)
     ν, μ, σ = params(p)
@@ -96,6 +98,4 @@ function logpdf(p::MvLocationScaleT, x)
     d = dims(p)
     ν, μ, Σ = params(p)
     return -d/2*log(ν*π) - 1/2*logdet(Σ) +loggamma((ν+d)/2) -loggamma(ν/2) -(ν+d)/2*log(1 + 1/ν*(x-μ)'*inv(Σ)*(x-μ))
-end
-
 end

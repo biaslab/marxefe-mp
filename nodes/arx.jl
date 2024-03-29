@@ -3,12 +3,12 @@ struct ARX end
 @node ARX Stochastic [out, x, ζ]
 
 
-@rule ARX(:out, Marginalisation) (q_x::PointMass, q_ζ::MvNormalGamma) = begin
+@rule ARX(:out, Marginalisation) (m_ζ::MvNormalGamma, q_x::PointMass, ) = begin
 
     mx = mean(q_x)
-    μ,Λ,α,β = params(q_ζ)
+    μ,Λ,α,β = RxInfer.params(m_ζ)
     
-    return NormalMeanPrecision(μ'*mx, mx'*inv(α/β*Λ)*mx + β/α)
+    return LocationScaleT( 2*α, μ'*mx, sqrt((mx'*inv(Λ)*mx + 1)*β/α) )
 end
 
 @rule ARX(:x, Marginalisation) (q_out::PointMass, q_ζ::MvNormalGamma) = begin
