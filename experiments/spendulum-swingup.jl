@@ -16,7 +16,7 @@ using Distributions
 using RxInfer
 using ExponentialFamily
 using Plots
-default(label="")
+default(label="", margin=10Plots.pt)
 includet("../systems/Pendulums.jl"); using .Pendulums
 # includet("../src/nuv_box.jl");
 # includet("../src/diode.jl");
@@ -27,6 +27,7 @@ includet("../nodes/mv_normal_gamma.jl")
 # includet("../nodes/location_scale_tdist.jl")
 includet("../nodes/mv_location_scale_tdist.jl")
 includet("../nodes/arx.jl")
+includet("../nodes/arxefe.jl")
 includet("../src/util.jl")
 
 ## System specification
@@ -47,10 +48,10 @@ pendulum = SPendulum(init_state = init_state,
                      torque_lims = sys_ulims,
                      Δt=Δt)
 
-N = 100
+N = 3000
 tsteps = range(0.0, step=Δt, length=N)                     
 
-A  = rand(10)*300 .- 100
+A  = rand(10)
 Ω  = rand(10)*3
 controls = mean([A[i]*sin.(Ω[i].*tsteps) for i = 1:10]) ./ 20;
 
@@ -118,7 +119,7 @@ ubuffer = zeros(Mu+1)
 yk = observations[1]
 
 ppy = []
-pζ  = [MvNormalGamma(ones(M), 10diagm(ones(M)), 2., 10.)]
+pζ  = [MvNormalGamma(1e-1*ones(M), 1e-2diagm(ones(M)), 2., 100.)]
      
 for k = 1:N
 
@@ -156,7 +157,13 @@ p20 = plot(ylabel="angle")
 plot!(tsteps, states[1,:], color="blue", label="state")
 scatter!(tsteps, observations, color="black", label="measurements")
 plot!(tsteps, mean.(ppy), ribbon=std.(ppy), color="purple", label="predictions")
+p21 = plot(ylabel="squared error", xlabel="time (s)")
+plot!(tsteps, (states[1,:] .- mean.(ppy)).^2, color="orange")
+plot(p20,p21, layout=(2,1), size=(900,600))
 
 savefig(p20, "experiments/figures/pred-idsys.png")
+
+μ_series = cat(mean.(pζ)...,dims=2)
+plot([-Δt; tsteps], μ_series')
 
 

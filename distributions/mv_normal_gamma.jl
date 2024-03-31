@@ -1,14 +1,14 @@
-# export MvNormalGamma, params
 
 import BayesBase
 using LinearAlgebra
 using Distributions
 using SpecialFunctions
 
+
 struct MvNormalGamma{T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real, B <: Real} <: ContinuousMultivariateDistribution
  
-    μ::M # Mean
-    Λ::L # Precision
+    μ::M # Mean vector
+    Λ::L # Precision matrix
     α::A # Shape
     β::B # Rate   
 
