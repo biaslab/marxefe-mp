@@ -80,22 +80,6 @@ savefig(p10, "experiments/figures/simsys.png")
 
 @model function ARXID()
 
-    yk = datavar(Float64)
-    xk = datavar(Vector{Float64})
-    μk = datavar(Vector{Float64})
-    Λk = datavar(Matrix{Float64})
-    αk = datavar(Float64)
-    βk = datavar(Float64)
-
-    # Parameter prior
-    ζ ~ MvNormalGamma(μk,Λk,αk,βk)
-
-    # Autoregressive likelihood
-    yk ~ ARX(xk,ζ)
-end
-
-@model function ARXPred()
-
     yk = datavar(Float64) where { allow_missing = true }
     xk = datavar(Vector{Float64})
     μk = datavar(Vector{Float64})
@@ -108,6 +92,34 @@ end
 
     # Autoregressive likelihood
     yk ~ ARX(xk,ζ)
+end
+
+@model function ARXAgent(η)
+
+    m_star = datavar(Float64)
+    v_star = datavar(Float64)
+
+    yk = datavar(Float64) where { allow_missing = true }
+    xk = datavar(Vector{Float64})
+    μk = datavar(Vector{Float64})
+    Λk = datavar(Matrix{Float64})
+    αk = datavar(Float64)
+    βk = datavar(Float64)
+
+    # Parameter prior
+    ζk ~ MvNormalGamma(μk,Λk,αk,βk)
+
+    # Autoregressive likelihood
+    yk ~ ARXEFE(uk,xk, ζk)
+
+    # Prevent updating of parameters
+    # ζt ~ Diode(ζk)
+
+    # Control prior
+    ut ~ NormalMeanPrecision(0.0, η)
+
+    # Future likelihood
+    ut ~ ARXEFE(m_star, v_star, yk, ζk)
 
 end
 
@@ -118,7 +130,11 @@ ybuffer = zeros(My)
 ubuffer = zeros(Mu+1)
 yk = observations[1]
 
+m_star = 1.0
+v_star = 0.1
+
 ppy = []
+pu  = []
 pζ  = [MvNormalGamma(1e-1*ones(M), 1e-2diagm(ones(M)), 2., 100.)]
      
 for k = 1:N
@@ -131,20 +147,24 @@ for k = 1:N
 
     # Make prediction
     results = infer(
-        model = ARXPred(),
+        model = ARXID(),
         data = (yk=missing, xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
     )
     push!(ppy, results.predictions[:yk])
 
-    # Observe output
-    yk = observations[k]
-
     # Update parameter belief
     results = infer(
         model = ARXID(),
-        data = (yk=yk, xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
+        data = (yk=observations[k], xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
     )
     push!(pζ, results.posteriors[:ζ])
+
+    # Infer control
+    results = infer(
+        model = ARXAgent(),
+        data = (yk=observations[k], xk=xk, μk=μk, Λk=Λk, αk=αk, βk=βk),
+    )
+    push!(pu, results.posteriors[:ut])
 
     # Update buffers    
     ybuffer = backshift(ybuffer,observations[k])
