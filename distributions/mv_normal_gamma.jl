@@ -1,3 +1,4 @@
+export MvNormalGamma
 
 import BayesBase
 using LinearAlgebra
@@ -9,13 +10,13 @@ struct MvNormalGamma{T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real
  
     μ::M # Mean vector
     Λ::L # Precision matrix
-    α::A # Shape
-    β::B # Rate   
+    α::A # Shape parameter
+    β::B # Rate parameter
 
     function MvNormalGamma(μ::M, Λ::L, α::A, β::B) where {T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real, B <: Real}
         
-        if α <= 0.0; error("Shape parameter must be positive."); end
-        if β <= 0.0; error("Rate parameter must be positive."); end
+        # if α <= 0.0; error("Shape parameter must be positive."); end
+        # if β <= 0.0; error("Rate parameter must be positive."); end
         
         dimensions = length(μ)
         if size(Λ, 1) != dimensions
@@ -29,7 +30,7 @@ struct MvNormalGamma{T, M <: AbstractArray{T}, L <: AbstractMatrix{T}, A <: Real
     end
 end
 
-BayesBase.dim(d::MvNormalGamma) = d.D
+BayesBase.dim(d::MvNormalGamma) = length(d.μ)
 BayesBase.params(d::MvNormalGamma) = (d.μ, d.Λ, d.α, d.β)
 BayesBase.mean(d::MvNormalGamma) = d.μ
 BayesBase.precision(d::MvNormalGamma) = d.Λ
@@ -54,13 +55,15 @@ end
 BayesBase.default_prod_rule(::Type{<:MvNormalGamma}, ::Type{<:MvNormalGamma}) = PreserveTypeProd(Distribution)
 
 function BayesBase.prod(::PreserveTypeProd{Distribution}, left::MvNormalGamma, right::MvNormalGamma)
+    
+    D = BayesBase.dim(left)
     μl, Λl, αl, βl = RxInfer.params(left)
     μr, Λr, αr, βr = RxInfer.params(right)
 
     Λ = Λl + Λr
-    μ = inv(Λ)*(Λl*μl + Λr*μr)
-    α = αl + αr -1
-    β = βl + βr
+    μ = inv(Λl + Λr)*(Λl*μl + Λr*μr)
+    α = αl + αr + D/2 - 1
+    β = βl + βr + 1/2. *(μl'*Λl*μl + μr'*Λr*μr - (Λl*μl + Λr*μr)'*inv(Λl + Λr)*(Λl*μl + Λr*μr))
 
     return MvNormalGamma(μ, Λ, α, β)
 end

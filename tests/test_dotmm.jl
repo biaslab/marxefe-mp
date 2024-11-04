@@ -7,8 +7,8 @@ default(label="", linewidth=2)
 ### Sampling
 
 # Component distributions
-mx,vx = (1.0,2.0)
-my,vy = (2.0,3.0)
+mx,vx = (0.0,1.0)
+my,vy = (0.0,1.0)
 px = Normal(mx,sqrt(vx))
 py = Normal(my,sqrt(vy))
 
@@ -22,19 +22,27 @@ mdz_hat = median(z)
 mz_hat  = mean(z)
 vz_hat  = var(z)
 
-plot()
-histogram(z, normalize=:pdf)
-
-### Overlay functions
-
-# Bessel function
-xr = range(-10,stop=10,step=0.5)
-pz(z) = besselk.(0, abs(z))./π
-plot!(xr, pz.(xr), lw=3, color="red", xlims=extrema(xr))
-
-# Gaussian with moment matching (EP)
+# Moment matching
 qmz = mx*my
 qvz = (vx + mx^2)*(vy + my^2) - mx^2*my^2
+
+diff_mz = abs(mz_hat - qmz)
+diff_vz = abs(vz_hat - qvz)
+println("| empirical mean - moment-matched mean | = $diff_mz")
+println("| empirical variance - moment-matched variance | = $diff_vz")
+
+### Visual comparison
+
+zr = range(-5,stop=5, length=100)
+
+# Histogram
+histogram(z, bins=zr, normalize=:pdf, xlims=extrema(zr))
+
+# Bessel function
+pz(z) = besselk.(0, abs(z))./π
+plot!(zr, pz.(zr), lw=3, color="red", xlims=extrema(zr))
+
+# Gaussian with moment matching (EP)
 qz(z) = pdf(Normal(qmz,sqrt(qvz)),z)
-plot!(xr, qz.(xr), lw=3, color="purple", xlims=extrema(xr))
+plot!(zr, qz.(zr), lw=3, color="purple", xlims=extrema(zr))
 
