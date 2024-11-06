@@ -21,7 +21,7 @@ end
 @rule ARXEFE(:ζ, Marginalisation) (m_out::UnivariateGaussianDistributionsFamily,
                                    q_outprev1::PointMass, 
                                    q_outprev2::PointMass, 
-                                   q_in::UnivariateGaussianDistributionsFamily, 
+                                   m_in::UnivariateGaussianDistributionsFamily, 
                                    q_inprev1::PointMass, 
                                    q_inprev2::PointMass) = begin
 
@@ -31,7 +31,7 @@ end
 @rule ARXEFE(:ζ, Marginalisation) (m_out::UnivariateGaussianDistributionsFamily,
                                    q_outprev1::UnivariateGaussianDistributionsFamily, 
                                    q_outprev2::PointMass, 
-                                   q_in::UnivariateGaussianDistributionsFamily, 
+                                   m_in::UnivariateGaussianDistributionsFamily, 
                                    q_inprev1::UnivariateGaussianDistributionsFamily, 
                                    q_inprev2::PointMass) = begin
 
@@ -41,7 +41,7 @@ end
 @rule ARXEFE(:ζ, Marginalisation) (m_out::UnivariateGaussianDistributionsFamily,
                                    q_outprev1::UnivariateGaussianDistributionsFamily, 
                                    q_outprev2::UnivariateGaussianDistributionsFamily, 
-                                   q_in::UnivariateGaussianDistributionsFamily, 
+                                   m_in::UnivariateGaussianDistributionsFamily, 
                                    q_inprev1::UnivariateGaussianDistributionsFamily, 
                                    q_inprev2::UnivariateGaussianDistributionsFamily) = begin
 

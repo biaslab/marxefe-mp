@@ -1,3 +1,4 @@
+import BayesBase: params
 
 @rule ARXEFE(:in, Marginalisation) (m_out::UnivariateGaussianDistributionsFamily,
                                     q_outprev1::PointMass, 
@@ -12,7 +13,7 @@
 
     function f(u)
         x_t = [mean(q_outprev1), mean(q_outprev2), u, mean(q_inprev1), mean(q_outprev2)]
-        return ( s2_t + (m_t - m_star)^2 ) / ( 2v_star ) - 1/2*log(1 + x_t'*inv(Λ)*x_t)
+        return 1/(2v_star)*(β/(α-1)*(1 + x_t'*inv(Λ)*x_t) + (μ'*x_t - m_star)^2 ) - 1/2*log(1 + x_t'*inv(Λ)*x_t)
     end 
 
     return ContinuousUnivariateLogPdf(f)

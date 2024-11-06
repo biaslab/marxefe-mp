@@ -13,6 +13,7 @@ using LinearAlgebra
 using Distributions
 using RxInfer
 using ExponentialFamily
+using ExponentialFamilyProjection
 using Plots
 default(label="", margin=10Plots.pt)
 includet("../systems/Pendulums.jl"); using .Pendulums
@@ -43,7 +44,7 @@ sys_length = 0.5
 sys_damping = 0.01
 sys_mnoise_stdev = 1e-3
 sys_ulims = (-10., 10.)
-Δt = 0.1
+Δt = 0.05
 
 init_state = [0.0, 0.0]
 pendulum = SPendulum(init_state = init_state, 
@@ -54,58 +55,8 @@ pendulum = SPendulum(init_state = init_state,
                      torque_lims = sys_ulims,
                      Δt=Δt)
 
-N = 300
-tsteps = range(0.0, step=Δt, length=N)                     
-
-A  = 100rand(10)
-Ω  = rand(10)*3
-controls = mean([A[i]*sin.(Ω[i].*tsteps) for i = 1:10]) ./ 20;
-
-My = 2
-Mu = 2
-M = My+Mu+1
-
-ybuffer      = zeros(My)
-ubuffer      = zeros(Mu+1)
-buffer       = zeros(M, N)
-states       = zeros(2,N)
-observations = zeros(N)
-torques      = zeros(N)
-
-for k in 1:N   
-
-    states[:,k] = pendulum.state
-    observations[k] = pendulum.sensor
-    step!(pendulum, controls[k])
-    torques[k] = pendulum.torque
-
-    ubuffer = backshift(ubuffer, torques[k])
-    buffer[:,k] = [ybuffer; ubuffer]
-    ybuffer = backshift(ybuffer, observations[k])
-
-end
-
-p11 = plot(ylabel="angle")
-plot!(tsteps, states[1,:], color="blue", label="state")
-scatter!(tsteps, observations, color="black", label="measurements")
-p12 = plot(xlabel="time [s]", ylabel="torque")
-plot!(tsteps, controls[:], color="red")
-plot!(tsteps, torques[:], color="purple")
-p10 = plot(p11,p12, layout=grid(2,1, heights=[0.7, 0.3]), size=(900,600))
-
-savefig(p10, "experiments/figures/simsys.png")
-
 
 ## Adaptive control
-
-μkmin1 = zeros(M)
-Λkmin1 = diageye(M)
-αkmin1 = 1.0
-βkmin1 = 1.0
-mu = 0.0
-vu = 1.0
-m_star = 0.0
-v_star = 1.0
 
 @model function ARXAgent(yk,ykmin1,ykmin2,uk,ukmin1,ukmin2, μkmin1,Λkmin1,αkmin1,βkmin1,mu,vu,m_star,v_star)
 
@@ -126,22 +77,88 @@ v_star = 1.0
 
 end
 
-k = 10
-results = infer(
-    model = ARXAgent(μkmin1=μkmin1, 
-                     Λkmin1=Λkmin1, 
-                     αkmin1=αkmin1, 
-                     βkmin1=βkmin1, 
-                     mu=mu, 
-                     vu=vu,
-                     m_star=m_star,
-                     v_star=v_star),
-    data  = (yk     = observations[k],
-             ykmin1 = observations[k-1], 
-             ykmin2 = observations[k-2],
-             uk     = torques[k],
-             ukmin1 = torques[k-1], 
-             ukmin2 = torques[k-2]),
-)
+constraints = @constraints begin
+    q(ut) :: ProjectedTo(NormalMeanVariance)
+    q(yt) :: ProjectedTo(NormalMeanVariance)
+end
 
 
+len_trial = 30
+My = 2
+Mu = 2
+M = My+Mu+1
+μ_kmin1 = zeros(M)
+Λ_kmin1 = diageye(M)
+α_kmin1 = 1.0
+β_kmin1 = 1.0
+m_u = 0.0
+v_u = 1.0
+m_star = 0.0
+v_star = 0.5
+
+states       = zeros(2, len_trial)
+observations = zeros(len_trial)
+torques      = zeros(len_trial)
+μs           = zeros(M,len_trial)
+Λs           = zeros(M,M,len_trial)
+αs           = zeros(len_trial)
+βs           = zeros(len_trial)
+py           = []
+pu           = []
+
+for k in M:len_trial
+
+    states[:,k] = pendulum.state
+    observations[k] = pendulum.sensor
+
+    results = infer(
+        model        = ARXAgent(μkmin1=μ_kmin1,
+                                Λkmin1=Λ_kmin1,
+                                αkmin1=α_kmin1,
+                                βkmin1=β_kmin1,
+                                mu=m_u,
+                                vu=v_u,
+                                m_star=m_star,
+                                v_star=v_star),
+        data         = (yk     = observations[k],
+                        ykmin1 = observations[k-1], 
+                        ykmin2 = observations[k-2],
+                        uk     = torques[k],
+                        ukmin1 = torques[k-1], 
+                        ukmin2 = torques[k-2]),
+        constraints  = constraints,
+        iterations   = 10,
+        showprogress = true,
+        returnvars   = (yt = KeepLast(), 
+                        ut = KeepLast(),
+                        ζ  = KeepLast(),),
+    )
+
+    # Take action
+    push!(pu, results.posteriors[:ut])
+    action = mean(results.posteriors[:ut])
+    step!(pendulum, action)
+    torques[k] = pendulum.torque
+
+    # Track predictions
+    push!(py, results.posteriors[:yt])
+
+    # Track parameters
+    μs[:,k]   = μ_kmin1 = mean(results.posteriors[:ζ])
+    Λs[:,:,k] = Λ_kmin1 = precision(results.posteriors[:ζ])
+    αs[k]     = α_kmin1 = shape(results.posteriors[:ζ])
+    βs[k]     = β_kmin1 = rate(results.posteriors[:ζ])
+
+end
+
+tsteps = range(0, step=Δt, length=len_trial)
+
+p101 = plot(xlabel="time", ylabel="angle")
+scatter!(tsteps, observations, label="observations")
+plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), label="predictions")
+
+p102 = plot(xlabel="time", ylabel="control", ylims=sys_ulims)
+plot!(tsteps, torques, label="torques")
+
+plot(p101, p102, layout=(2,1), size=(500,1000))
+savefig("experiments/figures/swingup-trial.png")

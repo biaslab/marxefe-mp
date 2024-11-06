@@ -1,13 +1,29 @@
 import BayesBase
 using DomainSets
 
-function BayesBase.prod(p1::NormalMeanVariance{T}, p2::ContinuousUnivariateLogPdf{DomainSets.FullSpace{T}}) where T
-    
-    m = mean(p1)
-    v = var( p1)
+function BayesBase.prod(::PreserveTypeLeftProd, 
+                        left::ContinuousUnivariateLogPdf{FullSpace{T}}, 
+                        right::UnivariateGaussianDistributionsFamily{T}) where T <: Real
 
-    logp(u) = -1/2. *log(2π*v) - (u - m)^2/(2v)
-    h(u) = logp(u) + p2.logpdf(u)
+    logq(u) = left.logpdf(u) + BayesBase.logpdf(right,u)
 
-    return ContinuousUnivariateLogPdf(h)
+    return ContinuousUnivariateLogPdf(logq)
+end
+
+function BayesBase.prod(::PreserveTypeRightProd, 
+                        left::UnivariateGaussianDistributionsFamily{T},
+                        right::ContinuousUnivariateLogPdf{FullSpace{T}}) where T <: Real
+
+    logq(u) = BayesBase.logpdf(left,u) + right.logpdf(u)
+
+    return ContinuousUnivariateLogPdf(logq)
+end
+
+function BayesBase.prod(::GenericProd, 
+                        left::LocationScaleT, 
+                        right::UnivariateGaussianDistributionsFamily{T}) where T <: Real
+
+    logq(u) = logpdf(left,u) + BayesBase.logpdf(right,u)
+
+    return ContinuousUnivariateLogPdf(logq)
 end

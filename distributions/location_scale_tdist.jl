@@ -35,5 +35,5 @@ end
 
 function logpdf(p::LocationScaleT, x)
     ν, μ, σ = params(p)
-    return loggamma( (ν+1)/2 ) - loggamma(ν/2) - 1/2*log(πν) - log(σ) + ( -(ν+1)/2 )*log( 1 + (x-μ)^2/(ν*σ^2) )
+    return loggamma( (ν+1)/2 ) - loggamma(ν/2) - 1/2*log(π*ν) - log(σ) + ( -(ν+1)/2 )*log( 1 + (x-μ)^2/(ν*σ^2) )
 end
