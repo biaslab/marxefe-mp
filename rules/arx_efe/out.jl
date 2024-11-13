@@ -25,7 +25,7 @@ end
                                      m_ζ::MvNormalGamma) = begin
 
     μk,Λk,αk,βk = params(m_ζ)
-    xk = [mean(q_outprev1), mean(q_outprev2), mean(m_in), mean(q_inprev1), mean(q_outprev2)]
+    xk = [mean(q_outprev1), mean(q_outprev2), mode(m_in), mean(q_inprev1), mean(q_outprev2)]
 
     ν = 2αk
     μ = μk'*xk
