@@ -16,27 +16,27 @@ using ExponentialFamily
 using ExponentialFamilyProjection
 using Plots
 default(label="", margin=10Plots.pt)
-includet("../systems/Pendulums.jl"); using .Pendulums
+includet("../../systems/Pendulums.jl"); using .Pendulums
 
-includet("../distributions/mv_normal_gamma.jl")
-includet("../distributions/location_scale_t.jl")
-includet("../distributions/mv_location_scale_t.jl")
-includet("../distributions/continuous_univariate.jl")
+includet("../../distributions/mv_normal_gamma.jl")
+includet("../../distributions/location_scale_t.jl")
+includet("../../distributions/mv_location_scale_t.jl")
+includet("../../distributions/continuous_univariate.jl")
 
-includet("../nodes/mv_normal_gamma.jl")
-includet("../nodes/location_scale_t.jl")
-includet("../nodes/mv_location_scale_t.jl")
-includet("../nodes/arxefe.jl")
+includet("../../nodes/mv_normal_gamma.jl")
+includet("../../nodes/location_scale_t.jl")
+includet("../../nodes/mv_location_scale_t.jl")
+includet("../../nodes/arxefe.jl")
 
-includet("../rules/mv_normal_gamma/out.jl")
-includet("../rules/location_scale_t/out.jl")
-includet("../rules/mv_location_scale_t/out.jl")
-includet("../rules/arx_efe/out.jl")
-includet("../rules/arx_efe/in.jl")
-includet("../rules/arx_efe/parameter.jl")
+includet("../../rules/mv_normal_gamma/out.jl")
+includet("../../rules/location_scale_t/out.jl")
+includet("../../rules/mv_location_scale_t/out.jl")
+includet("../../rules/arx_efe/out.jl")
+includet("../../rules/arx_efe/in.jl")
+includet("../../rules/arx_efe/parameter.jl")
 
-includet("../src/product.jl")
-includet("../src/util.jl")
+includet("../../src/product.jl")
+includet("../../src/util.jl")
 
 ## System specification
 
@@ -163,3 +163,5 @@ plot!(tsteps, torques, label="torques")
 
 plot(p101, p102, layout=(2,1), size=(500,1000))
 savefig("experiments/figures/swingup-trial.png")
+
+
