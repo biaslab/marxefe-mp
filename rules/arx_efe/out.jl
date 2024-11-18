@@ -33,3 +33,20 @@ end
 
     return LocationScaleT(ν,μ,σ)
 end
+
+@rule ARXEFE(:out, Marginalisation) (q_outprev1::PointMass, 
+                                     q_outprev2::PointMass, 
+                                     q_in::Uniform, 
+                                     q_inprev1::PointMass, 
+                                     q_inprev2::PointMass, 
+                                     q_ζ::MvNormalGamma) = begin
+
+    μk,Λk,αk,βk = params(q_ζ)
+    xk = [mean(q_outprev1), mean(q_outprev2), mode(q_in), mean(q_inprev1), mean(q_outprev2)]
+
+    ν = 2αk
+    μ = μk'*xk
+    σ = sqrt(βk/αk*(xk'*inv(Λk)*xk + 1))
+
+    return LocationScaleT(ν,μ,σ)
+end

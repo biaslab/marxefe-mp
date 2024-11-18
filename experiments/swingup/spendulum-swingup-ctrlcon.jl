@@ -22,12 +22,14 @@ includet("../../distributions/mv_normal_gamma.jl")
 includet("../../distributions/location_scale_t.jl")
 includet("../../distributions/mv_location_scale_t.jl")
 includet("../../distributions/continuous_univariate.jl")
+includet("../../distributions/uniform.jl")
 
 includet("../../nodes/mv_normal_gamma.jl")
 includet("../../nodes/location_scale_t.jl")
 includet("../../nodes/mv_location_scale_t.jl")
 includet("../../nodes/arxefe.jl")
 includet("../../nodes/nuv_box.jl")
+includet("../../nodes/uniform.jl")
 
 includet("../../rules/mv_normal_gamma/out.jl")
 includet("../../rules/location_scale_t/out.jl")
@@ -37,6 +39,7 @@ includet("../../rules/arx_efe/in.jl")
 includet("../../rules/arx_efe/parameter.jl")
 includet("../../rules/NUV_box/out.jl")
 includet("../../rules/NUV_box/sigma.jl")
+includet("../../rules/uniform/out.jl")
 
 includet("../../src/product.jl")
 includet("../../src/util.jl")
@@ -71,9 +74,7 @@ pendulum = SPendulum(init_state = init_state,
     yk ~ ARXEFE(ykmin1,ykmin2,uk,ukmin1,ukmin2,ζ)
 
     # Control prior
-    σ2a ~ Uninformative()
-    σ2b ~ Uninformative()
-    ut ~ NUV_Box(σ2a, σ2b, sys_ulims[1], sys_ulims[2], 1.)
+    ut ~ Uniform(sys_ulims[1], sys_ulims[2])
 
     # Future likelihood
     yt ~ ARXEFE(yk,ykmin1,ut,uk,ukmin1,ζ)
@@ -84,14 +85,13 @@ pendulum = SPendulum(init_state = init_state,
 end
 
 constraints = @constraints begin
-    q(ut,σ2a,σ2b) = q(ut)q(σ2a)q(σ2b)
+    q(ut,yt,ζ) = q(ut)q(yt)q(ζ)
 end
 
 inits = @initialization begin
-    q(σ2a) = PointMass(1.)
-    q(σ2b) = PointMass(1.)
-    q(ut)  = NormalMeanVariance(0.,1.)
-    q(yt)  = LocationScaleT(1.,0.,1.)
+    q(ut) = Uniform(sys_ulims...)
+    q(yt) = LocationScaleT(1., 0., 1.)
+    q(ζ)  = MvNormalGamma(zeros(M),diageye(M),1.,1.)
 end
 
 len_trial = 30
@@ -117,7 +117,8 @@ pu           = []
 
 results = []
 
-for k in M:len_trial
+# for k in M:len_trial
+k = M+1
 
     # Track system
     states[:,k] = pendulum.state
@@ -162,7 +163,7 @@ for k in M:len_trial
     αs[k]     = α_kmin1 = shape(results.posteriors[:ζ])
     βs[k]     = β_kmin1 = rate(results.posteriors[:ζ])
 
-end
+# end
 
 tsteps = range(0, step=Δt, length=len_trial)
 
