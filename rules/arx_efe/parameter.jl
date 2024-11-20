@@ -10,8 +10,8 @@
     xk = [mean(q_outprev1), mean(q_outprev2), mean(q_in), mean(q_inprev1), mean(q_inprev2)]
     M  = length(xk)
 
-    μ_ = inv(xk*xk' + 1e-12*I(M))*(xk*yk)
-    Λ_ = xk*xk' + 1e-12*I(M)
+    μ_ = inv(xk*xk' + 1e-8*I(M))*(xk*yk)
+    Λ_ = xk*xk' + 1e-8*I(M)
     α_ = -M/2 + 3/2.
     β_ = 0.0
 
@@ -44,6 +44,16 @@ end
                                    m_in::UnivariateGaussianDistributionsFamily, 
                                    q_inprev1::UnivariateGaussianDistributionsFamily, 
                                    q_inprev2::UnivariateGaussianDistributionsFamily) = begin
+
+    return Uninformative()
+end
+
+@rule ARXEFE(:ζ, Marginalisation) (m_out::UnivariateGaussianDistributionsFamily,
+                                   q_outprev1::PointMass, 
+                                   q_outprev2::PointMass, 
+                                   m_in::Uniform, 
+                                   q_inprev1::PointMass, 
+                                   q_inprev2::PointMass) = begin
 
     return Uninformative()
 end

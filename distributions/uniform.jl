@@ -36,7 +36,7 @@ function BayesBase.pdf(dist::Uniform, x::Real)
 end
 
 function BayesBase.logpdf(dist::Uniform, x::Real)
-    if a <= x <= b
+    if dist.a <= x <= dist.b
         return -log(dist.b - dist.a)
     else
         return -Inf

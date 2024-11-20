@@ -36,17 +36,22 @@ end
 
 @rule ARXEFE(:out, Marginalisation) (q_outprev1::PointMass, 
                                      q_outprev2::PointMass, 
-                                     q_in::Uniform, 
+                                     m_in::Uniform, 
                                      q_inprev1::PointMass, 
                                      q_inprev2::PointMass, 
-                                     q_ζ::MvNormalGamma) = begin
+                                     m_ζ::MvNormalGamma) = begin
 
-    μk,Λk,αk,βk = params(q_ζ)
-    xk = [mean(q_outprev1), mean(q_outprev2), mode(q_in), mean(q_inprev1), mean(q_outprev2)]
+    μk,Λk,αk,βk = params(m_ζ)
+    xk = [mean(q_outprev1), mean(q_outprev2), mean(m_in), mean(q_inprev1), mean(q_outprev2)]
+    print("xk = ")
+    println(xk)
 
     ν = 2αk
     μ = μk'*xk
     σ = sqrt(βk/αk*(xk'*inv(Λk)*xk + 1))
+    println("ν = $ν")
+    println("μ = $μ")
+    println("σ = $σ")
 
     return LocationScaleT(ν,μ,σ)
 end

@@ -12,8 +12,8 @@ using Revise
 using LinearAlgebra
 using Distributions
 using RxInfer
-using ExponentialFamily
-using ExponentialFamilyProjection
+# using ExponentialFamily
+# using ExponentialFamilyProjection
 using Plots
 default(label="", margin=10Plots.pt)
 includet("../../systems/Pendulums.jl"); using .Pendulums
@@ -84,26 +84,16 @@ pendulum = SPendulum(init_state = init_state,
 
 end
 
-constraints = @constraints begin
-    q(ut,yt,ζ) = q(ut)q(yt)q(ζ)
-end
-
-inits = @initialization begin
-    q(ut) = Uniform(sys_ulims...)
-    q(yt) = LocationScaleT(1., 0., 1.)
-    q(ζ)  = MvNormalGamma(zeros(M),diageye(M),1.,1.)
-end
-
 len_trial = 30
 My = 2
 Mu = 2
 M = My+Mu+1
 μ_kmin1 = zeros(M)
 Λ_kmin1 = diageye(M)
-α_kmin1 = 1.0
+α_kmin1 = 2.0
 β_kmin1 = 1e4
 m_star = 0.0
-v_star = 1e-1
+v_star = 1e3
 
 states       = zeros(2, len_trial)
 observations = zeros(len_trial)
@@ -114,11 +104,11 @@ torques      = zeros(len_trial)
 βs           = zeros(len_trial)
 py           = []
 pu           = []
+results_     = []
 
-results = []
+observations[1:M] = 1e-6*randn(M)
 
-# for k in M:len_trial
-k = M+1
+for k in M:len_trial
 
     # Track system
     states[:,k] = pendulum.state
@@ -138,40 +128,35 @@ k = M+1
                           uk     = torques[k],
                           ukmin1 = torques[k-1], 
                           ukmin2 = torques[k-2]),
-        constraints    = constraints,
-        initialization = inits,
         options        = (limit_stack_depth = 100,),
-        iterations     = 10,
-        showprogress   = true,
-        returnvars     = (yt = KeepLast(),
-                          ut = KeepLast(),
-                          ζ  = KeepLast(),),
     )
+    push!(results_, results)
 
     # Take action
-    put_box = ContinuousUnivariateLogPdf(Interval(sys_ulims...), 
-                                         results.posteriors[:ut].logpdf)
-    action = mode(put_box)
+    put = results.posteriors[:ut]
+    optres = optimize(x -> -put.logpdf(first(x)), put.domain.left, put.domain.right)
+    action = Optim.minimizer(optres)
+    println("Action = $action")
     step!(pendulum, action)
     
     # Track variables
     torques[k] = pendulum.torque
-    push!(pu, put_box)
+    push!(pu, results.posteriors[:ut])
     push!(py, results.posteriors[:yt])
     μs[:,k]   = μ_kmin1 = mean(results.posteriors[:ζ])
     Λs[:,:,k] = Λ_kmin1 = precision(results.posteriors[:ζ])
     αs[k]     = α_kmin1 = shape(results.posteriors[:ζ])
     βs[k]     = β_kmin1 = rate(results.posteriors[:ζ])
 
-# end
+end
 
 tsteps = range(0, step=Δt, length=len_trial)
 
 p101 = plot(xlabel="time", ylabel="angle")
 scatter!(tsteps, observations, label="observations")
-plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), label="predictions")
+plot!(collect(tsteps[M:end]), mean.(py), label="predictions")
 
-p102 = plot(xlabel="time", ylabel="control", ylims=sys_ulims)
+p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1]-.5, sys_ulims[2]-.5])
 plot!(tsteps, torques, label="torques")
 plot!(collect(tsteps[M:end]), mode.(pu), ribbon=std.(pu), label="Control posteriors")
 

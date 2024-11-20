@@ -47,7 +47,7 @@ function BayesBase.prod(::GenericProd,
                         left::LocationScaleT, 
                         right::UnivariateGaussianDistributionsFamily{T}) where T <: Real
 
-    # Gaussian approximation to LocationScaleT                       
+    # Gaussian approximation to LocationScaleT  
     ν,μ,σ = params(left)                        
     left_normal = NormalMeanVariance(μ, σ^2*(ν/(ν-2)))
 
