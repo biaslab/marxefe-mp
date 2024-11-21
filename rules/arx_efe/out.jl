@@ -43,15 +43,10 @@ end
 
     μk,Λk,αk,βk = params(m_ζ)
     xk = [mean(q_outprev1), mean(q_outprev2), mean(m_in), mean(q_inprev1), mean(q_outprev2)]
-    print("xk = ")
-    println(xk)
 
     ν = 2αk
     μ = μk'*xk
     σ = sqrt(βk/αk*(xk'*inv(Λk)*xk + 1))
-    println("ν = $ν")
-    println("μ = $μ")
-    println("σ = $σ")
 
     return LocationScaleT(ν,μ,σ)
 end

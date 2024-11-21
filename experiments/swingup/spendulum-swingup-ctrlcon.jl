@@ -84,16 +84,16 @@ pendulum = SPendulum(init_state = init_state,
 
 end
 
-len_trial = 30
+len_trial = 300
 My = 2
 Mu = 2
 M = My+Mu+1
 μ_kmin1 = zeros(M)
-Λ_kmin1 = diageye(M)
-α_kmin1 = 2.0
-β_kmin1 = 1e4
-m_star = 0.0
-v_star = 1e3
+Λ_kmin1 = 1e-3diageye(M)
+α_kmin1 = 10.0
+β_kmin1 = 1e-2
+m_star = -0.1
+v_star =  0.1
 
 states       = zeros(2, len_trial)
 observations = zeros(len_trial)
@@ -109,6 +109,14 @@ results_     = []
 observations[1:M] = 1e-6*randn(M)
 
 for k in M:len_trial
+
+    # Output predictions
+    xk = [observations[k-1:-1:k-2]; torques[k:-1:k-2]]
+    ν = 2α_kmin1
+    μ = μ_kmin1'*xk
+    σ = sqrt(β_kmin1/α_kmin1*(xk'*inv(Λ_kmin1)*xk + 1))
+    pyt = LocationScaleT(ν,μ,σ)
+    push!(py, pyt)
 
     # Track system
     states[:,k] = pendulum.state
@@ -134,15 +142,14 @@ for k in M:len_trial
 
     # Take action
     put = results.posteriors[:ut]
+    push!(pu, put)
     optres = optimize(x -> -put.logpdf(first(x)), put.domain.left, put.domain.right)
     action = Optim.minimizer(optres)
     println("Action = $action")
     step!(pendulum, action)
+    torques[k] = pendulum.torque
     
     # Track variables
-    torques[k] = pendulum.torque
-    push!(pu, results.posteriors[:ut])
-    push!(py, results.posteriors[:yt])
     μs[:,k]   = μ_kmin1 = mean(results.posteriors[:ζ])
     Λs[:,:,k] = Λ_kmin1 = precision(results.posteriors[:ζ])
     αs[k]     = α_kmin1 = shape(results.posteriors[:ζ])
@@ -152,13 +159,15 @@ end
 
 tsteps = range(0, step=Δt, length=len_trial)
 
-p101 = plot(xlabel="time", ylabel="angle")
+p101 = plot(xlabel="time", ylabel="angle", ylims=(-1.,1.))
 scatter!(tsteps, observations, label="observations")
-plot!(collect(tsteps[M:end]), mean.(py), label="predictions")
+plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), label="predictions")
+savefig("experiments/swingup/figures/swingup-outputpredictions.png")
 
-p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1]-.5, sys_ulims[2]-.5])
+p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1]-.5, sys_ulims[2]+.5])
 plot!(tsteps, torques, label="torques")
 plot!(collect(tsteps[M:end]), mode.(pu), ribbon=std.(pu), label="Control posteriors")
+savefig("experiments/swingup/figures/swingup-controls.png")
 
 plot(p101, p102, layout=(2,1), size=(500,1000))
 savefig("experiments/swingup/figures/swingup-trial.png")
