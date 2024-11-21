@@ -92,8 +92,8 @@ M = My+Mu+1
 Λ_kmin1 = 1e-3diageye(M)
 α_kmin1 = 10.0
 β_kmin1 = 1e-2
-m_star = -0.1
-v_star =  0.1
+m_star  = 2.0
+v_star  = 0.5
 
 states       = zeros(2, len_trial)
 observations = zeros(len_trial)
@@ -143,7 +143,7 @@ for k in M:len_trial
     # Take action
     put = results.posteriors[:ut]
     push!(pu, put)
-    optres = optimize(x -> -put.logpdf(first(x)), put.domain.left, put.domain.right)
+    optres = optimize(x -> put.logpdf(first(x)), put.domain.left, put.domain.right)
     action = Optim.minimizer(optres)
     println("Action = $action")
     step!(pendulum, action)
@@ -164,12 +164,31 @@ scatter!(tsteps, observations, label="observations")
 plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), label="predictions")
 savefig("experiments/swingup/figures/swingup-outputpredictions.png")
 
-p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1]-.5, sys_ulims[2]+.5])
-plot!(tsteps, torques, label="torques")
-plot!(collect(tsteps[M:end]), mode.(pu), ribbon=std.(pu), label="Control posteriors")
+p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1], sys_ulims[2]])
+urange = range(sys_ulims[1], stop=sys_ulims[2], length=100)
+PU = hcat([put.logpdf.(urange) for put in pu]...)
+heatmap!(collect(tsteps[M:end]), urange, PU, label="Control posteriors")
+plot!(collect(tsteps[M:end]), torques[M:end], color=:white, linewidth=4, label="torques")
 savefig("experiments/swingup/figures/swingup-controls.png")
 
 plot(p101, p102, layout=(2,1), size=(500,1000))
 savefig("experiments/swingup/figures/swingup-trial.png")
 
 
+function G(u; k=1)
+    x = [observations[k-1:-1:k-2]; u; torques[k-1:-1:k-2]]
+    return 1/(2v_star)*(βs[k]/(αs[k]-1)*(1+x'*inv(Λs[:,:,k])*x) + (μs[:,k]'*x - m_star)^2 ) - 1/2*log(1+x'*inv(Λs[:,:,k])*x)
+end
+
+function CE(u; k=1)
+    x = [observations[k-1:-1:k-2]; u; torques[k-1:-1:k-2]]
+    return 1/(2v_star)*(βs[k]/(αs[k]-1)*(1+x'*inv(Λs[:,:,k])*x) + (μs[:,k]'*x - m_star)^2 )
+end
+
+function MI(u; k=1)
+    x = [observations[k-1:-1:k-2]; u; torques[k-1:-1:k-2]]
+    return - 1/2*log(1+x'*inv(Λs[:,:,k])*x)
+end
+
+xx = range(sys_ulims[1], stop=sys_ulims[2], length=100)
+plot(xx, G.(xx, k=100))

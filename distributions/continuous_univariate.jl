@@ -29,7 +29,7 @@ end
 function mode(p::ContinuousUnivariateLogPdf{I}) where I <: Interval
     "Mode obtained through maximization."
 
-    results = optimize(x -> -p.logpdf(first(x)), p.domain.left, p.domain.right)
+    results = optimize(x -> p.logpdf(first(x)), p.domain.left, p.domain.right)
     return Optim.minimizer(results)
 end
 
