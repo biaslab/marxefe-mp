@@ -49,8 +49,8 @@ includet("../../src/util.jl")
 sys_mass = 0.8
 sys_length = 0.5
 sys_damping = 0.01
-sys_mnoise_stdev = 1e-2
-sys_ulims = (-1., 1.)
+sys_mnoise_stdev = 1e-1
+sys_ulims = (-100., 100.)
 Δt = 0.05
 
 init_state = [0.0, 0.0]
@@ -89,19 +89,20 @@ My = 2
 Mu = 2
 M = My+Mu+1
 μ_kmin1 = zeros(M)
-Λ_kmin1 = 1e-3diageye(M)
+Λ_kmin1 = 1e-1diageye(M)
 α_kmin1 = 10.0
 β_kmin1 = 1e-2
-m_star  = 2.0
+m_star  = 0.5
 v_star  = 0.5
 
 states       = zeros(2, len_trial)
 observations = zeros(len_trial)
-torques      = zeros(len_trial)
+torques      = zeros(len_trial+1)
 μs           = zeros(M,len_trial)
 Λs           = zeros(M,M,len_trial)
 αs           = zeros(len_trial)
 βs           = zeros(len_trial)
+my           = []
 py           = []
 pu           = []
 results_     = []
@@ -115,8 +116,8 @@ for k in M:len_trial
     ν = 2α_kmin1
     μ = μ_kmin1'*xk
     σ = sqrt(β_kmin1/α_kmin1*(xk'*inv(Λ_kmin1)*xk + 1))
-    pyt = LocationScaleT(ν,μ,σ)
-    push!(py, pyt)
+    myt = LocationScaleT(ν,μ,σ)
+    push!(my, myt)
 
     # Track system
     states[:,k] = pendulum.state
@@ -139,15 +140,15 @@ for k in M:len_trial
         options        = (limit_stack_depth = 100,),
     )
     push!(results_, results)
+    push!(py, results.posteriors[:yt])
+    push!(pu, results.posteriors[:ut])
 
     # Take action
     put = results.posteriors[:ut]
-    push!(pu, put)
     optres = optimize(x -> put.logpdf(first(x)), put.domain.left, put.domain.right)
     action = Optim.minimizer(optres)
-    println("Action = $action")
     step!(pendulum, action)
-    torques[k] = pendulum.torque
+    torques[k+1] = pendulum.torque
     
     # Track variables
     μs[:,k]   = μ_kmin1 = mean(results.posteriors[:ζ])
@@ -159,20 +160,22 @@ end
 
 tsteps = range(0, step=Δt, length=len_trial)
 
-p101 = plot(xlabel="time", ylabel="angle", ylims=(-1.,1.))
-scatter!(tsteps, observations, label="observations")
-plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), label="predictions")
+p101 = plot(xlabel="time", ylabel="angle", ylims=(-1.,2.))
+plot!(tsteps, repeat([m_star], len_trial), ribbon=repeat([v_star], len_trial), color=:green, fillalpha=0.5, label="goal_prior")
+scatter!(tsteps, observations, color=:black, label="observations")
+plot!(collect(tsteps[M:end]), mean.(my), ribbon=std.(my), color=:orange, label="yₜ messages")
+plot!(collect(tsteps[M:end]), mean.(py), ribbon=std.(py), color=:purple, label="yₜ marginals")
 savefig("experiments/swingup/figures/swingup-outputpredictions.png")
 
 p102 = plot(xlabel="time", ylabel="control", ylims=[sys_ulims[1], sys_ulims[2]])
 urange = range(sys_ulims[1], stop=sys_ulims[2], length=100)
 PU = hcat([put.logpdf.(urange) for put in pu]...)
-heatmap!(collect(tsteps[M:end]), urange, PU, label="Control posteriors")
-plot!(collect(tsteps[M:end]), torques[M:end], color=:white, linewidth=4, label="torques")
+heatmap!(collect(tsteps)[M:end], urange, PU, colormap=:jet, label="Control posteriors")
+scatter!(collect(tsteps)[M:end], torques[M:len_trial], color=:black, linewidth=4, label="torques")
 savefig("experiments/swingup/figures/swingup-controls.png")
 
-plot(p101, p102, layout=(2,1), size=(500,1000))
-savefig("experiments/swingup/figures/swingup-trial.png")
+# plot(p101, p102, layout=(2,1), size=(500,1000))
+# savefig("experiments/swingup/figures/swingup-trial.png")
 
 
 function G(u; k=1)
@@ -191,4 +194,6 @@ function MI(u; k=1)
 end
 
 xx = range(sys_ulims[1], stop=sys_ulims[2], length=100)
-plot(xx, G.(xx, k=100))
+urange = range(sys_ulims[1], stop=sys_ulims[2], length=100)
+CE_ = hcat([CE.(urange, k=k) for k in M:len_trial]...)
+heatmap(collect(tsteps)[M:len_trial], urange, CE_, colormap=:jet, label="Control posteriors")
