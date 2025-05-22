@@ -14,9 +14,11 @@ struct MvLocationScaleT{T, N <: Real, M <: AbstractVector{T}, S <: AbstractMatri
     Σ::S # Covariance matrix
 
     function MvLocationScaleT(ν::N, μ::M, Σ::S) where {T, N <: Real, M <: AbstractVector{T}, S <: AbstractMatrix{T}}
+
+        dims = length(μ)
         
-        if ν <= 0.0; error("Degrees of freedom parameter must be positive."); end
-        if length(μ) !== size(Σ,1); error("Dimensionalities of mean and covariance matrix don't match."); end
+        if ν <= dims; error("Degrees of freedom parameter must be larger than the dimensionality."); end
+        if dims !== size(Σ,1); error("Dimensionalities of mean and covariance matrix don't match."); end
 
         return new{T,N,M,S}(ν, μ, Σ)
     end
@@ -25,8 +27,8 @@ end
 BayesBase.params(p::MvLocationScaleT) = (p.ν, p.μ, p.Σ)
 BayesBase.dim(p::MvLocationScaleT) = length(p.μ)
 BayesBase.mean(p::MvLocationScaleT) = p.μ
-# BayesBase.cov(p::MvLocationScaleT) = p.Σ
-# BayesBase.precision(p::LocationScaleT) = inv(var(p))
+BayesBase.cov(p::MvLocationScaleT) = p.ν > 2 ? p.ν/(p.ν-2)*p.Σ : error("Degrees of freedom parameter must be larger than 2.")
+BayesBase.precision(p::LocationScaleT) = inv(cov(p))
 
 function pdf(p::MvLocationScaleT, x)
     d = dims(p)

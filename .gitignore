@@ -25,4 +25,4 @@ Manifest.toml
 
 # Local
 .gitignore
-archive
+.vscode

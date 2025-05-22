@@ -1,2 +1,3 @@
-# arx-aia
-Message-passing-based active inference agent with autoregressive generative model.
+# MARXEFE-MP
+
+Message passing for expected free energy minimizing agent based on multivariate autoregressive exogenous models.
