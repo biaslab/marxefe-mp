@@ -7,7 +7,7 @@ using Distributions
 using SpecialFunctions
 
 
-struct MatrixNormalWishart{T, A <: AbstractArray{T}, S <: Real} <: ContinuousMultivariateDistribution
+struct MatrixNormalWishart{T, A <: AbstractArray{T}, S <: Real} <: ContinuousMatrixDistribution
  
     M::A # Mean matrix
     Λ::A # Row precision matrix
@@ -17,7 +17,6 @@ struct MatrixNormalWishart{T, A <: AbstractArray{T}, S <: Real} <: ContinuousMul
     function MatrixNormalWishart(M::A, Λ::A, Ω::A, ν::S) where {T, A <: AbstractArray{T}, S <: Real}
         
         Dx,Dy = size(M)
-        if ν <= Dy; error("Degrees of freedom should be larger than dimensionality."); end
         if size(Λ, 1) != Dx; error("Number of rows of row precision matrix does not match mean matrix num rows."); end
         if size(Λ, 2) != Dx; error("Number of columns of row precision matrix does not match mean matrix num columns."); end
         if size(Ω, 1) != Dy; error("Number of rows of scale matrix does not match mean matrix num columns."); end

@@ -51,6 +51,10 @@ function backshift(M::AbstractMatrix, a::Number)
     return diagm(backshift(diag(M), a))
 end
 
+function backshift(x::AbstractMatrix, a::Vector)
+    return [a x[:,1:end-1]]
+end
+
 function proj2psd!(S::AbstractMatrix)
     L,V = eigen(S)
     S = V*diagm(max.(1e-8,L))*V'
