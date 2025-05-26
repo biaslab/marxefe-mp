@@ -19,3 +19,13 @@
 
     return MatrixNormalWishart(M_, Λ_, Ω_, ν_)
 end
+
+@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance,
+                                 q_outprev1::PointMass, 
+                                 q_outprev2::PointMass, 
+                                 m_in::MvNormalMeanPrecision, 
+                                 q_inprev1::PointMass, 
+                                 q_inprev2::PointMass) = begin
+
+    return Uninformative()
+end

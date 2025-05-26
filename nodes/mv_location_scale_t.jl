@@ -1,5 +1,8 @@
 
 
-@node MvLocationScaleT Stochastic [out, ν,μ,σ]
+@node MvLocationScaleT Stochastic [out, η,μ,Σ]
+
+## Average energy
+
 
 
