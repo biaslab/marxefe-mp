@@ -20,17 +20,17 @@
     return MatrixNormalWishart(M_, Λ_, Ω_, ν_)
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance,
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal,
                                  m_outprev1::Union{PointMass,AbstractMvNormal},
                                  q_outprev2::PointMass,
-                                 m_in::MvNormalMeanPrecision, 
+                                 m_in::AbstractMvNormal, 
                                  m_inprev1::Union{PointMass,AbstractMvNormal}, 
                                  q_inprev2::PointMass) = begin
 
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance,
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal,
                                  m_outprev1::Union{PointMass,AbstractMvNormal},
                                  q_outprev2::PointMass,
                                  m_in::unBoltzmann, 
@@ -40,39 +40,75 @@ end
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance,
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal,
                                  m_outprev1::Union{PointMass,AbstractMvNormal},
                                  m_outprev2::Union{PointMass,AbstractMvNormal},
-                                 m_in::MvNormalMeanPrecision, 
+                                 m_in::AbstractMvNormal, 
                                  m_inprev1::Union{PointMass,AbstractMvNormal}, 
                                  m_inprev2::Union{PointMass,AbstractMvNormal}) = begin
 
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance, 
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal, 
                                  q_outprev1::PointMass, 
                                  q_outprev2::PointMass, 
-                                 m_in::MvNormalMeanCovariance, 
+                                 m_in::AbstractMvNormal, 
                                  q_inprev1::PointMass, 
                                  q_inprev2::PointMass, ) = begin 
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance, 
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal, 
                                  m_outprev1::MvLocationScaleT,
                                  q_outprev2::PointMass, 
-                                 m_in::MvNormalMeanPrecision, 
+                                 m_in::AbstractMvNormal, 
                                  m_inprev1::unBoltzmann,  
                                  q_inprev2::PointMass, ) = begin 
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (m_out::MvNormalMeanCovariance,
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal,
                                  q_outprev1::PointMass,
                                  q_outprev2::PointMass, 
                                  m_in::unBoltzmann,   
                                  q_inprev1::PointMass, 
                                  q_inprev2::PointMass, ) = begin 
+    return Uninformative()
+end
+
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal, 
+                                 q_outprev1::PointMass,
+                                 q_outprev2::PointMass,
+                                 m_in::unBoltzmann, 
+                                 q_inprev1::PointMass, 
+                                 q_inprev2::PointMass, ) = begin 
+    return Uninformative()
+end
+
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal, 
+                                 m_outprev1::MvLocationScaleT, 
+                                 m_outprev2::AbstractMvNormal, 
+                                 m_in::AbstractMvNormal, 
+                                 m_inprev1::unBoltzmann, 
+                                 m_inprev2::unBoltzmann, ) = begin 
+    return Uninformative()
+end
+
+@rule MARX(:Φ, Marginalisation) (m_out::AbstractMvNormal, 
+                                 m_outprev1::AbstractMvNormal, 
+                                 q_outprev2::PointMass, 
+                                 m_in::unBoltzmann, 
+                                 m_inprev1::unBoltzmann, 
+                                 q_inprev2::PointMass, ) = begin 
+    return Uninformative()
+end
+
+@rule MARX(:Φ, Marginalisation) (q_out::AbstractMvNormal, 
+                                 q_outprev1::Union{PointMass,AbstractMvNormal},
+                                 q_outprev2::Union{PointMass,AbstractMvNormal}, 
+                                 q_in::Union{AbstractMvNormal,unBoltzmann}, 
+                                 q_inprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                 q_inprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, ) = begin 
     return Uninformative()
 end
