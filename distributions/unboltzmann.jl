@@ -20,17 +20,17 @@ end
 
 BayesBase.ndims(d::unBoltzmann) = d.D
 
-function BayesBase.mode(d::unBoltzmann; u_lims=(-Inf,Inf), time_limit=1., show_trace=false, iterations=1000)
+function BayesBase.mode(d::unBoltzmann; u_lims=(-Inf,Inf), time_limit=.5, show_trace=false, iterations=10)
     "Use optimization methods to find maximizer"
 
     opts = Optim.Options(time_limit=time_limit, 
-                         show_trace=show_trace, 
+                         show_trace=false, 
                          allow_f_increases=true, 
-                         g_tol=1e-12, 
                          show_every=10,
                          iterations=iterations)
     
-    results = optimize(d.G, u_lims..., 1e-8*randn(d.D), Fminbox(LBFGS()), opts, autodiff=:forward)
+    # results = optimize(d.G, u_lims..., 1e-8*randn(d.D), Fminbox(LBFGS()), opts, autodiff=:forward)
+    results = optimize(d.G, 1e-8*randn(d.D), LBFGS(), opts, autodiff=:forward)
     return Optim.minimizer(results)
 end
 
