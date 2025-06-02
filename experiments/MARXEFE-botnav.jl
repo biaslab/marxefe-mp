@@ -29,13 +29,13 @@ includet("../rules/MARX/parameter.jl");
 includet("../rules/matrix_normal_wishart/out.jl")
 
 # Trial number (saving id)
-trialnum = 01
+trialnum = 08
 
 # Time
 Δt = 0.1
-len_trial = 100
+len_trial = 50
 tsteps = range(0, step=Δt, length=len_trial)
-len_horizon = 4;
+len_horizon = 3;
 
 # Dimensionalities
 Mu = 2
@@ -57,14 +57,14 @@ z_0 = [-1., -1., 0., 0.]
 
 # Goal prior parameters
 m_star = [1., 1.]
-S_star = 1e-3diagm(ones(Dy))
+S_star = 1e-2diagm(ones(Dy))
 goal = MvNormal(m_star, S_star)
 
 # Prior parameters
 ν0 = 100
 Ω0 = 1e0*diagm(ones(Dy))
 Λ0 = 1e-2*diagm(ones(Dx))
-M0 = ones(Dx,Dy) / (Dy*Dx)
+M0 = zeros(Dx,Dy)
 Υ  = 1e-12*diagm(ones(Dy));
 # M0,Λ0,Ω0,ν0 = params(results.posteriors[:Φ])
 
@@ -132,7 +132,7 @@ Ms = zeros(Dx,Dy,len_trial)
 
 # Fix starting state
 z_sim[:,1] = z_0
-u_sim[:,1] = clamp!(randn(2), u_lims...)
+u_sim[:,1] = clamp!(1e-2*randn(2), u_lims...)
 y_sim[:,1] = emit(fbot, z_sim[:,1])
 ybuffer    = backshift(ybuffer,y_sim[:,1])
 ubuffer    = backshift(ubuffer,u_sim[:,1])
@@ -141,8 +141,7 @@ Ms[:,:,1]  = M0
 Ωs[:,:,1]  = Ω0
 νs[1]      = ν0
 
-results_learning = []
-results_planning = []
+planres = []
 
 @info "Starting trial."
 for k in 2:len_trial
@@ -210,13 +209,13 @@ for k in 2:len_trial
                     u_tmin2 = ubuffer[:,2],),
             initialization = inits,
             constraints = MeanField(),
-            iterations = 2, 
-            showprogress = true,
+            iterations = 3, 
             options = (limit_stack_depth=100,),
         )
+        push!(planres,results_planning)
 
         # Extract action
-        u_sim[:,k] = mode(results_planning.posteriors[:u_][end][1], u_lims=u_lims)
+        u_sim[:,k] = mode(results_planning.posteriors[:u_][end][2], u_lims=u_lims)
 
         # Store output plans
         plans_m[:,:,k] = cat(mean.(results_planning.posteriors[:y_][end])...,dims=2)
@@ -238,7 +237,8 @@ for k in 2:len_trial
 end
 
 # Save 
-jldsave("experiments/results/MARXEFE-botnav-trialnum$trialnum.jld2"; z_sim, u_sim, y_sim, Ms, Λs, Ωs, νs, Υ, plans_m, plans_S, preds_m, preds_S)
+trialnumpad = lpad(trialnum, 3, '0')
+jldsave("experiments/results/MARXEFE-botnav-trialnum$trialnumpad.jld2"; z_sim, u_sim, y_sim, Ms, Λs, Ωs, νs, Υ, plans_m, plans_S, preds_m, preds_S)
 
 # Check actions
 plot(u_sim')
@@ -254,17 +254,28 @@ for kk = twin
     covellipse!(preds_m[:,kk], preds_S[:,:,kk], n_std=1, alpha=0.001, fillalpha=0.0001, color="purple")
 end
 plot!(preds_m[1,twin], preds_m[2,twin], label="predictions", color="purple")
-# plot!(xlims=(-3,3), ylims=(-3,3))
 
 # Plot plans at a certain timepoint
-tpoint = 80
+tpoint = 45
 scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
 scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", color="red", markersize=5)
-# covellipse!(mean(goal), cov(goal), n_std=1., linewidth=1, fillalpha=0.1, linecolor="red", color="red")
-# scatter!(y_sim[1,tpoint], y_sim[2,tpoint], alpha=0.5, label="observations", color="black")
 plot!(z_sim[1,1:tpoint], z_sim[2,1:tpoint], linewidth=3, label="system path", color="blue")
 for tt in 1:len_horizon
     scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="y_$tt", color="purple")
     covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.5^tt, color="purple")
 end
 plot!()
+
+# Inspect q(u_t)
+timepoint = 8
+num_cells = 100
+uu = range(u_lims[1], stop=u_lims[2], length=num_cells)
+landscape = zeros(num_cells,num_cells)
+for (ii,ui) in enumerate(uu)
+    for (jj,uj) in enumerate(uu)
+        landscape[ii,jj] = planres[timepoint-1].posteriors[:u_][end][1].G([ui,uj])
+    end
+end
+heatmap(uu,uu,landscape, cmap=:jet)
+u_star = argmin(landscape')
+scatter!([uu[u_star[1]]], [uu[u_star[2]]], color=:white, markersize=10)
