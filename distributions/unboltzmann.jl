@@ -3,6 +3,7 @@ export unBoltzmann
 import BayesBase
 import RxInfer
 using Optim
+using Logging
 using LinearAlgebra
 using Distributions
 using SpecialFunctions
@@ -20,17 +21,19 @@ end
 
 BayesBase.ndims(d::unBoltzmann) = d.D
 
-function BayesBase.mode(d::unBoltzmann; u_lims=(-Inf,Inf), time_limit=.1, show_trace=false, iterations=10)
+function BayesBase.mode(d::unBoltzmann; u_lims=(-Inf,Inf), time_limit=.5, show_trace=false, iterations=3)
     "Use optimization methods to find maximizer"
 
     opts = Optim.Options(time_limit=time_limit, 
-                         show_trace=false, 
+                         show_trace=show_trace, 
                          allow_f_increases=true, 
-                         show_every=10,
-                         iterations=iterations)
-    
-    # results = optimize(d.G, u_lims..., 1e-8*randn(d.D), Fminbox(LBFGS()), opts, autodiff=:forward)
-    results = optimize(d.G, 1e-8*randn(d.D), LBFGS(), opts, autodiff=:forward)
+                         outer_iterations=iterations,
+                         iterations=1)
+
+    @debug opts
+    gradG(J,u) = ForwardDiff.gradient!(J,d.G,u)
+    results = optimize(d.G, gradG, repeat([u_lims[1]],d.D), repeat([u_lims[2]],d.D), 1e-8*randn(d.D), Fminbox(LBFGS()), opts)
+    # results = optimize(d.G, 1e-8*randn(d.D), LBFGS(), opts, autodiff=:forward)
     return clamp!(Optim.minimizer(results), u_lims...)
 end
 

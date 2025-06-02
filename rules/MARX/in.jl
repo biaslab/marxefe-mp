@@ -87,7 +87,7 @@ end
         MI = -1/2*logdet(Σ)
 
         # Cross entropy
-        CE = 1/2*( η/(η-2)*tr( S_star\(Σ + (μ-m_star)*(μ-m_star)' )) )
+        CE = 1/2*tr( S_star\( η/(η-2)*Σ + (μ-m_star)*(μ-m_star)' ))
 
         return MI + CE
     end

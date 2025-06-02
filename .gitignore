@@ -26,3 +26,4 @@ Manifest.toml
 # Local
 .gitignore
 .vscode
+profile.pb.gz
