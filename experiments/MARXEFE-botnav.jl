@@ -29,11 +29,11 @@ includet("../rules/MARX/parameter.jl");
 includet("../rules/matrix_normal_wishart/out.jl")
 
 # Trial number (saving id)
-trialnum = 08
+trialnum = 09
 
 # Time
 Δt = 0.1
-len_trial = 50
+len_trial = 500
 tsteps = range(0, step=Δt, length=len_trial)
 len_horizon = 3;
 
@@ -57,7 +57,7 @@ z_0 = [-1., -1., 0., 0.]
 
 # Goal prior parameters
 m_star = [1., 1.]
-S_star = 1e-2diagm(ones(Dy))
+S_star = 1e-3diagm(ones(Dy))
 goal = MvNormal(m_star, S_star)
 
 # Prior parameters
@@ -132,7 +132,7 @@ Ms = zeros(Dx,Dy,len_trial)
 
 # Fix starting state
 z_sim[:,1] = z_0
-u_sim[:,1] = clamp!(1e-2*randn(2), u_lims...)
+u_sim[:,1] = clamp!(1e-1*randn(2), u_lims...)
 y_sim[:,1] = emit(fbot, z_sim[:,1])
 ybuffer    = backshift(ybuffer,y_sim[:,1])
 ubuffer    = backshift(ubuffer,u_sim[:,1])
@@ -246,7 +246,7 @@ plot(u_sim')
 # Plot trajectories
 twin = 3:len_trial
 scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
-scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", color="red", markersize=5)
+scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", color="red", alpha=0.5, markersize=5)
 covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, linecolor="red", color="red")
 scatter!(y_sim[1,twin], y_sim[2,twin], alpha=0.5, label="observations", color="black")
 plot!(z_sim[1,twin], z_sim[2,twin], label="system path", color="blue")
@@ -254,6 +254,7 @@ for kk = twin
     covellipse!(preds_m[:,kk], preds_S[:,:,kk], n_std=1, alpha=0.001, fillalpha=0.0001, color="purple")
 end
 plot!(preds_m[1,twin], preds_m[2,twin], label="predictions", color="purple")
+plot!(x_lims=[-5,15], y_lims=[-5,15])
 
 # Plot plans at a certain timepoint
 tpoint = 45
