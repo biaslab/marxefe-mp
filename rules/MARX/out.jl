@@ -222,7 +222,7 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(m_star - B_'*x)
@@ -251,14 +251,14 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(y - B_'*x)
     Σ = ν*Ω
 
     # @info "iB1 = ", iB1
-    # @info "μ = ", μ
+    @info "μ = ", μ
     # @info "Σ = ", Σ
       
     return MvNormalMeanCovariance(μ,Σ)
@@ -280,14 +280,14 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(y - B_'*x)
     Σ = ν*Ω
 
     # @info "iB1 = ", iB1
-    # @info "μ = ", μ
+    @info "μ = ", μ
     # @info "Σ = ", Σ
       
     return MvNormalMeanCovariance(μ,Σ)
@@ -310,13 +310,13 @@ end
 
     B_  = M[Dy+1:end,:]
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
 
     μ = iB1'*(y - B_'*x)
     Σ = ν*Ω
 
     # @info "iB1 = ", iB1
-    # @info "μ = ", μ
+    @info "μ = ", μ
     # @info "Σ = ", Σ
       
     return MvNormalMeanCovariance(μ,Σ)
@@ -338,7 +338,7 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(m_star - B_'*x)
@@ -367,7 +367,7 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(y - B_'*x)
@@ -396,7 +396,7 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(y - B_'*x)
@@ -425,7 +425,7 @@ end
     Dx = length(x)
 
     B1  = M[1:Dy,:]
-    iB1 = inv(B1 + diagm(ones(Dy)))
+    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
     B_  = M[Dy+1:end,:]
 
     μ = iB1'*(y - B_'*x)
