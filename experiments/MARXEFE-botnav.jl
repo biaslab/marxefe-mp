@@ -20,6 +20,7 @@ includet("envs/Robots.jl"); using. Robots
 includet("../src/util.jl");
 includet("../distributions/matrix_normal_wishart.jl");
 includet("../distributions/mv_location_scale_t.jl");
+includet("../distributions/mv_normal_mean_precision.jl")
 includet("../distributions/unboltzmann.jl");
 includet("../nodes/MARX.jl");
 includet("../nodes/matrix_normal_wishart.jl");
@@ -28,48 +29,6 @@ includet("../rules/MARX/out.jl");
 includet("../rules/MARX/parameter.jl");
 includet("../rules/matrix_normal_wishart/out.jl")
 
-# Trial number (saving id)
-trialnum = 12
-
-# Time
-Δt = 0.1
-len_trial = 20
-tsteps = range(0, step=Δt, length=len_trial)
-len_horizon = 3;
-
-# Dimensionalities
-Mu = 2
-My = 2
-Dy = 2
-Du = Dy
-Dx = My*Dy + (Mu+1)*Du
-Dz = 4
-
-# Parameters
-σ = 1e-4*ones(Dy)
-ρ = 1e-3*ones(Dy)
-
-# Limits of controller
-global u_lims = (-3.0, 3.0)
-
-# Initial state
-z_0 = [-1., -1., 0., 0.]
-
-# Goal prior parameters
-m_star = [1., 1.]
-S_star = 1e-1diagm(ones(Dy))
-goal = MvNormal(m_star, S_star)
-
-# Prior parameters
-ν0 = 100
-Ω0 = 1e0*diagm(ones(Dy))
-Λ0 = 1e-4*diagm(ones(Dx))
-M0 = ones(Dx,Dy)/(Dx*Dy)
-Υ  = 1e-12*diagm(ones(Dy));
-# M0,Λ0,Ω0,ν0 = params(results.posteriors[:Φ])
-
-# Start robot
-fbot  = FieldBot(ρ,σ, Δt=Δt, control_lims=u_lims)
 
 
 @model function MARX_learning(y_k,y_kmin1,y_kmin2,u_k,u_kmin1,u_kmin2, M_kmin1,Λ_kmin1,Ω_kmin1,ν_kmin1)
@@ -113,6 +72,50 @@ end
 
 posterior_predictive(x_t,M,Λ,Ω,ν,Dx,Dy) = (ν-Dy+1, M'*x_t, 1/(ν-Dy+1)*Ω*(1+x_t'*inv(Λ)*x_t))
 
+
+# Trial number (saving id)
+trialnum = 19
+
+# Time
+Δt = 0.1
+len_trial = 30
+tsteps = range(0, step=Δt, length=len_trial)
+len_horizon = 2;
+
+# Dimensionalities
+Mu = 2
+My = 2
+Dy = 2
+Du = Dy
+Dx = My*Dy + (Mu+1)*Du
+Dz = 4
+
+# Parameters
+σ = 1e-4*ones(Dy)
+ρ = 1e-3*ones(Dy)
+
+# Limits of controller
+global u_lims = (-1.0, 1.0)
+
+# Initial state
+z_0 = [-1., -1., 0., 0.]
+
+# Goal prior parameters
+m_star = [1., 1.]
+S_star = 1e-3diagm(ones(Dy))
+goal = MvNormal(m_star, S_star)
+
+# Prior parameters
+ν0 = 100
+Ω0 = 1e0*diagm(ones(Dy))
+Λ0 = 1e-2*diagm(ones(Dx))
+M0 = ones(Dx,Dy)/(Dx*Dy)
+Υ  = 1e-12*diagm(ones(Dy));
+# M0,Λ0,Ω0,ν0 = params(results.posteriors[:Φ])
+
+# Start robot
+fbot  = FieldBot(ρ,σ, Δt=Δt, control_lims=u_lims)
+
 # Preallocate
 z_sim   = zeros(Dz,len_trial)
 y_sim   = zeros(Dy,len_trial)
@@ -143,6 +146,7 @@ planres = []
 
 @info "Starting trial."
 for k in 1:len_trial
+# k = 4
     @info "step = $k / $len_trial"
 
     """Predict observation"""
@@ -195,14 +199,15 @@ for k in 1:len_trial
         q(u_) = vague(MvNormalMeanCovariance,Du)
     end
 
-    cons = @constraints begin
-        # q(y_,u_,Φ) = q(y_)q(u_)q(Φ)
-        q(u_)::PointMassFormConstraint
-    end
+    # cons = @constraints begin
+    #     # q(y_,u_,Φ) = q(y_)q(u_)q(Φ)
+    #     q(u_)::PointMassFormConstraint
+    # end
 
     # Feed updated beliefs, goal prior params and buffers to planning model
     try
-        @time results_planning = infer(
+        # @time 
+        results_planning = infer(
             model = MARX_planning(M_k         = Ms[:,:,k],
                                   Λ_k         = Λs[:,:,k],
                                   Ω_k         = Ωs[:,:,k],
@@ -218,7 +223,7 @@ for k in 1:len_trial
             initialization = inits,
             constraints = MeanField(),
             # constraints = cons,
-            iterations = 3, 
+            iterations = 2, 
             options = (limit_stack_depth=100,),
         )
         push!(planres,results_planning)
@@ -261,14 +266,14 @@ covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, lineco
 scatter!(y_sim[1,twin], y_sim[2,twin], alpha=0.5, label="observations", color="black")
 plot!(z_sim[1,twin], z_sim[2,twin], label="system path", color="blue")
 for kk = twin
-    covellipse!(preds_m[:,kk], preds_S[:,:,kk], n_std=1, alpha=0.001, fillalpha=0.0001, color="purple")
+    covellipse!(preds_m[:,kk], preds_S[:,:,kk], n_std=1, alpha=0.1, fillalpha=0.01, color="purple")
 end
 plot!(preds_m[1,twin], preds_m[2,twin], label="predictions", color="purple")
 # plot!(x_lims=[-5,15], y_lims=[-5,15])
 savefig("experiments/figures/MARXEFE-botnav-trajectories-$trialnumpad.png")
 
 # Plot plans at a certain timepoint
-tpoint = 1
+tpoint = 22
 clrs = ["orange", "purple", "blue"]
 scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
 scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", color="red", markersize=5)
@@ -280,13 +285,12 @@ end
 plot!()
 
 # Inspect q(u_t)
-timepoint = 12
 num_cells = 100
 uu = range(u_lims[1], stop=u_lims[2], length=num_cells)
 landscape = zeros(num_cells,num_cells)
 for (ii,ui) in enumerate(uu)
     for (jj,uj) in enumerate(uu)
-        landscape[ii,jj] = planres[timepoint-1].posteriors[:u_][end][1].G([ui,uj])
+        landscape[ii,jj] = planres[tpoint-1].posteriors[:u_][end][1].G([ui,uj])
     end
 end
 heatmap(uu,uu,landscape, cmap=:jet)

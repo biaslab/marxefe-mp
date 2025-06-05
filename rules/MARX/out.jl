@@ -213,26 +213,21 @@ end
                                         q_inprev2::Union{PointMass,AbstractMvNormal},
                                         m_Φ::MatrixNormalWishart) = begin
  
-    M,Λ,Ω,ν = params(m_Φ)                                            
+    M,Λ,Ω,ν = params(m_Φ)
+    m_star  = mean(q_out)
+    
+    function G(outprev1)
 
-    m_star,S_star = mean_cov(q_out)
-    x = [mode(q_outprev2); mode(q_in); mode(q_inprev1); mode(q_inprev2)]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(q_in); mode(q_inprev1); mode(q_inprev2)]
 
-    Dy = length(m_star)
-    Dx = length(x)
-
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
-
-    μ = iB1'*(m_star - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    # @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal}, 
@@ -242,26 +237,21 @@ end
                                         q_inprev2::Union{PointMass,AbstractMvNormal}, 
                                         q_Φ::MatrixNormalWishart, ) = begin 
 
-    M,Λ,Ω,ν = params(q_Φ)                                            
+    M,Λ,Ω,ν = params(q_Φ)
+    m_star  = mean(q_out)
+    
+    function G(outprev1)
 
-    y = mode(q_out)
-    x = [mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1); mode(q_inprev2)]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1); mode(q_inprev2)]
 
-    Dy = length(y)
-    Dx = length(x)
-
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
-
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal}, 
@@ -271,26 +261,21 @@ end
                                         q_inprev2::Union{PointMass,AbstractMvNormal}, 
                                         q_Φ::MatrixNormalWishart, ) = begin 
 
-    M,Λ,Ω,ν = params(q_Φ)                                            
+    M,Λ,Ω,ν = params(q_Φ)
+    m_star  = mean(q_out)
+    
+    function G(outprev1)
 
-    y = mode(q_out)
-    x = [mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1, u_lims=u_lims); mode(q_inprev2)]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1, u_lims=u_lims); mode(q_inprev2)]
 
-    Dy = length(y)
-    Dx = length(x)
-
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
-
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal}, 
@@ -300,26 +285,21 @@ end
                                         q_inprev2::unBoltzmann, 
                                         q_Φ::MatrixNormalWishart, ) = begin 
 
-    M,Λ,Ω,ν = params(q_Φ)                                            
+    M,Λ,Ω,ν = params(q_Φ)
+    m_star  = mean(q_out)
+    
+    function G(outprev1)
 
-    y = mode(q_out)
-    x = [mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1, u_lims=u_lims); mode(q_inprev2, u_lims=u_lims)]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(q_in, u_lims=u_lims); mode(q_inprev1, u_lims=u_lims); mode(q_inprev2, u_lims=u_lims)]
 
-    Dy = length(m_star)
-    Dx = length(x)
-
-    B_  = M[Dy+1:end,:]
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (m_out::Union{AbstractMvNormal,MvLocationScaleT}, 
@@ -329,26 +309,21 @@ end
                                         q_inprev2::PointMass,
                                         m_Φ::MatrixNormalWishart) = begin
 
-    M,Λ,Ω,ν = params(m_Φ)                                            
-
-    m_star,S_star = mean_cov(m_out)
-    x = [mode(q_outprev2); mode(m_in); mode(m_inprev1, u_lims=u_lims); mode(q_inprev2)]
+    M,Λ,Ω,ν = params(m_Φ)
+    m_star  = mean(m_out)
     
-    Dy = length(m_star)
-    Dx = length(x)
+    function G(outprev1)
 
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(m_in); mode(m_inprev1,u_lims=u_lims); mode(q_inprev2)]
 
-    μ = iB1'*(m_star - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    # @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (m_out::AbstractMvNormal, 
@@ -358,26 +333,21 @@ end
                                         m_inprev2::AbstractMvNormal, 
                                         m_Φ::MatrixNormalWishart, ) = begin 
     
-    M,Λ,Ω,ν = params(m_Φ)                                            
-
-    y = mode(m_out)
-    x = [mode(m_outprev2); mode(m_in); mode(m_inprev1); mode(m_inprev2)]
+    M,Λ,Ω,ν = params(m_Φ)
+    m_star  = mean(m_out)
     
-    Dy = length(y)
-    Dx = length(x)
+    function G(outprev1)
 
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
+        # Construct buffer vector
+        x = [outprev1; mode(m_outprev2); mode(m_in); mode(q_inprev1); mode(q_inprev2)]
 
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    # @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (m_out::MvNormalMeanCovariance, 
@@ -387,26 +357,21 @@ end
                                         q_inprev2::PointMass,
                                         m_Φ::MatrixNormalWishart,) = begin 
     
-    M,Λ,Ω,ν = params(m_Φ)                                            
-
-    y = mode(m_out)
-    x = [mode(q_outprev2); mode(m_in, u_lims=u_lims); mode(m_inprev1, u_lims=u_lims); mode(q_inprev2)]
+    M,Λ,Ω,ν = params(m_Φ)
+    m_star  = mean(m_out)
     
-    Dy = length(y)
-    Dx = length(x)
+    function G(outprev1)
 
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
+        # Construct buffer vector
+        x = [outprev1; mode(q_outprev2); mode(m_in, u_lims=u_lims); mode(m_inprev1, u_lims=u_lims); mode(q_inprev2)]
 
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    # @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 @rule MARX(:outprev1, Marginalisation) (m_out::AbstractMvNormal, 
@@ -416,26 +381,21 @@ end
                                         m_inprev2::unBoltzmann, 
                                         m_Φ::MatrixNormalWishart, ) = begin 
 
-    M,Λ,Ω,ν = params(m_Φ)                                            
-
-    y = mode(m_out)
-    x = [mode(m_outprev2); mode(m_in); mode(m_inprev1, u_lims=u_lims); mode(m_inprev2, u_lims=u_lims)]
+    M,Λ,Ω,ν = params(m_Φ)
+    m_star  = mean(m_out)
     
-    Dy = length(y)
-    Dx = length(x)
+    function G(outprev1)
 
-    B1  = M[1:Dy,:]
-    iB1 = inv(B1 + 1e-1diagm(ones(Dy)))
-    B_  = M[Dy+1:end,:]
+        # Construct buffer vector
+        x = [outprev1; mode(m_outprev2); mode(m_in); mode(m_inprev1, u_lims=u_lims); mode(m_inprev2, u_lims=u_lims)]
 
-    μ = iB1'*(y - B_'*x)
-    Σ = ν*Ω
-
-    # @info "iB1 = ", iB1
-    # @info "μ = ", μ
-    # @info "Σ = ", Σ
-      
-    return MvNormalMeanCovariance(μ,Σ)      
+        # Multivariate location-scale T posterior predictive distribution
+        η = ν - Dy + 1
+        μ = M'*x
+        Σ = 1/(ν-Dy+1)*Ω*(1 + x'*inv(Λ)*x)
+        return logpdf(MvLocationScaleT(η,μ,Σ), m_star)
+    end
+    return unBoltzmann(G,Dy)
 end
 
 

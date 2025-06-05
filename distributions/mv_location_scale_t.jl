@@ -31,13 +31,13 @@ BayesBase.cov(p::MvLocationScaleT) = p.η > 2 ? p.η/(p.η-2)*p.Σ : error("Degr
 BayesBase.precision(p::MvLocationScaleT) = inv(cov(p))
 
 function pdf(p::MvLocationScaleT, x::Vector)
-    d = dims(p)
+    d = ndims(p)
     η, μ, Σ = params(p)
     return sqrt(1/( (η*π)^d*det(Σ) )) * gamma((η+d)/2)/gamma(η/2) * (1 + 1/η*(x-μ)'*inv(Σ)*(x-μ))^(-(η+d)/2)
 end
 
 function logpdf(p::MvLocationScaleT, x::Vector)
-    d = dims(p)
+    d = ndims(p)
     η, μ, Σ = params(p)
     return -d/2*log(η*π) - 1/2*logdet(Σ) +loggamma((η+d)/2) -loggamma(η/2) -(η+d)/2*log(1 + 1/η*(x-μ)'*inv(Σ)*(x-μ))
 end
@@ -45,6 +45,8 @@ end
 BayesBase.default_prod_rule(::Type{<:MvLocationScaleT}, ::Type{<:MvLocationScaleT}) = BayesBase.ClosedProd()
 BayesBase.default_prod_rule(::Type{<:AbstractMvNormal}, ::Type{<:MvLocationScaleT}) = BayesBase.ClosedProd()
 BayesBase.default_prod_rule(::Type{<:MvLocationScaleT}, ::Type{<:AbstractMvNormal}) = BayesBase.ClosedProd()
+BayesBase.default_prod_rule(::Type{<:MvLocationScaleT}, ::Type{<:unBoltzmann}) = BayesBase.ClosedProd()
+BayesBase.default_prod_rule(::Type{<:unBoltzmann}, ::Type{<:MvLocationScaleT}) = BayesBase.ClosedProd()
 
 function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::MvLocationScaleT)    
     if ndims(left) != ndims(right); error("Dimensionalities of MvLocationScaleT dists are not the same."); end
@@ -76,17 +78,33 @@ function BayesBase.prod(::BayesBase.ClosedProd, left::AbstractMvNormal, right::M
     return MvNormalMeanCovariance(μ,Σ)
 end
 
-function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::AbstractMvNormal)    
-    if ndims(left) != ndims(right); error("Dimensionalities of MvLocationScaleT and MvNormal dists are not the same."); end
-
-    ηl,μl,Σl = params(left)
-    μr,Σr = mean_cov(right)
-
-    Λl = inv(ηl/(ηl-2)*Σl)
-    Λr = inv(Σr)
+BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::AbstractMvNormal) = prod(ClosedProd(), right, left)
     
-    Σ = inv( Λl + Λr )
-    μ = Σ*(Λl*μl + Λr*μr)
+function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::unBoltzmann)    
+    if ndims(left) != ndims(right); error("Dimensionalities of MvLocationScaleT and Boltzmann dists are not the same."); end
+
+    opts = Optim.Options(time_limit=1., 
+                         show_trace=false, 
+                         allow_f_increases=true, 
+                         iterations=10)
+
+    # Laplace approximation
+    @info "Starting Laplace approximation"
+
+    @info "Left = ", params(left)
+
+    Q(y) = -logpdf(left, y) - right.G(y)
+    gradQ(J,y) = ForwardDiff.gradient!(J,Q,y)
+    results = optimize(Q, gradQ, mean(left), LBFGS(), opts)
+    y_map = Optim.minimizer(results)
+    S_lap = ForwardDiff.hessian(Q,y_map)
+
+    S_lap = proj2psd(S_lap)
+
+    @info "y_map = ", y_map
+    @info "S_lap = ", S_lap
     
-    return MvNormalMeanCovariance(μ,Σ)
+    return MvNormalMeanCovariance(y_map,S_lap)
 end
+
+BayesBase.prod(::BayesBase.ClosedProd, left::unBoltzmann, right::MvLocationScaleT) = prod(ClosedProd(), right, left)
