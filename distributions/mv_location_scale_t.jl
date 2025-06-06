@@ -89,9 +89,8 @@ function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::u
                          iterations=10)
 
     # Laplace approximation
-    @info "Starting Laplace approximation"
-
-    @info "Left = ", params(left)
+    # @info "Starting Laplace approximation"
+    # @info "Left = ", params(left)
 
     Q(y) = -logpdf(left, y) - right.G(y)
     gradQ(J,y) = ForwardDiff.gradient!(J,Q,y)
@@ -99,10 +98,10 @@ function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::u
     y_map = Optim.minimizer(results)
     S_lap = ForwardDiff.hessian(Q,y_map)
 
-    S_lap = proj2psd(S_lap)
+    if any(diag(S_lap) .< 1e-6); S_lap = proj2psd(S_lap); end
 
-    @info "y_map = ", y_map
-    @info "S_lap = ", S_lap
+    # @info "y_map = ", y_map
+    # @info "S_lap = ", S_lap
     
     return MvNormalMeanCovariance(y_map,S_lap)
 end

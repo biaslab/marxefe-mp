@@ -230,7 +230,6 @@ end
                                   q_Φ::MatrixNormalWishart, ) = begin 
                                     
     m_star,S_star = mean_cov(q_out)
-    if S_star
     M,Λ,Ω,ν = params(q_Φ)
     Dy = length(m_star)
                             

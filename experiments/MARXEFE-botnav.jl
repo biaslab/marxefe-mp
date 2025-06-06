@@ -74,13 +74,13 @@ posterior_predictive(x_t,M,Λ,Ω,ν,Dx,Dy) = (ν-Dy+1, M'*x_t, 1/(ν-Dy+1)*Ω*(1
 
 
 # Trial number (saving id)
-trialnum = 19
+trialnum = 05
 
 # Time
-Δt = 0.1
-len_trial = 30
+Δt = 0.2
+len_trial = 1000
 tsteps = range(0, step=Δt, length=len_trial)
-len_horizon = 2;
+len_horizon = 3;
 
 # Dimensionalities
 Mu = 2
@@ -98,7 +98,7 @@ Dz = 4
 global u_lims = (-1.0, 1.0)
 
 # Initial state
-z_0 = [-1., -1., 0., 0.]
+z_0 = [0., 0., 0., 0.]
 
 # Goal prior parameters
 m_star = [1., 1.]
@@ -136,13 +136,13 @@ Ms = zeros(Dx,Dy,len_trial)
 
 # Fix starting state
 z_prev = z_0
-u_sim[:,1] = clamp!(1e-1*randn(2),u_lims...)
+u_sim[:,1] = clamp!(1e-3*randn(2),u_lims...)
 M_kmin1  = M0
 Λ_kmin1  = Λ0
 Ω_kmin1  = Ω0
 ν_kmin1  = ν0
 
-planres = []
+planres = Vector{Any}(undef,len_trial)
 
 @info "Starting trial."
 for k in 1:len_trial
@@ -161,6 +161,9 @@ for k in 1:len_trial
     # Update system with action
     y_sim[:,k], z_sim[:,k] = update(fbot, z_prev, u_sim[:,k])
     z_prev = z_sim[:,k]
+
+    @info "u = " u_sim[:,k]
+    @info "z = " z_sim[:,k]
 
     """Infer parameters"""
 
@@ -226,11 +229,11 @@ for k in 1:len_trial
             iterations = 2, 
             options = (limit_stack_depth=100,),
         )
-        push!(planres,results_planning)
+        planres[k] = results_planning
 
         # Extract action
         if k < len_trial
-            u_sim[:,k] = mode(results_planning.posteriors[:u_][end][1], u_lims=u_lims)
+            u_sim[:,k+1] = mode(results_planning.posteriors[:u_][end][1], u_lims=u_lims)
         end
 
         # Store output plans
@@ -241,7 +244,7 @@ for k in 1:len_trial
         @info e
 
         if k < len_trial
-            u_sim[:,k] = zeros(Dy)
+            u_sim[:,k+1] = zeros(Dy)
         end
     end
 
@@ -254,6 +257,7 @@ jldsave("experiments/results/MARXEFE-botnav-trialnum$trialnumpad.jld2";
     Ms, Λs, Ωs, νs, Υ, 
     plans_m, plans_S, preds_m, preds_S, 
     goal, len_horizon, len_trial)
+@info "Saved trial"
 
 # Check actions
 plot(u_sim')
@@ -273,7 +277,7 @@ plot!(preds_m[1,twin], preds_m[2,twin], label="predictions", color="purple")
 savefig("experiments/figures/MARXEFE-botnav-trajectories-$trialnumpad.png")
 
 # Plot plans at a certain timepoint
-tpoint = 22
+tpoint = 12
 clrs = ["orange", "purple", "blue"]
 scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
 scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", color="red", markersize=5)
@@ -290,10 +294,12 @@ uu = range(u_lims[1], stop=u_lims[2], length=num_cells)
 landscape = zeros(num_cells,num_cells)
 for (ii,ui) in enumerate(uu)
     for (jj,uj) in enumerate(uu)
-        landscape[ii,jj] = planres[tpoint-1].posteriors[:u_][end][1].G([ui,uj])
+        landscape[ii,jj] = planres[tpoint].posteriors[:u_][end][1].G([ui,uj])
     end
 end
-heatmap(uu,uu,landscape, cmap=:jet)
-u_star = argmin(landscape')
+heatmap(uu,uu,landscape', cmap=:jet)
+u_star = argmin(landscape)
 scatter!([uu[u_star[1]]], [uu[u_star[2]]], color=:white, markersize=10)
-@info uu[u_star[1]], uu[u_star[2]]
+
+@info "Best action = " [uu[u_star[1]]], [uu[u_star[2]]]
+@info "Taken action = " u_sim[:,tpoint+1]
