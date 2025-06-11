@@ -27,3 +27,5 @@ Manifest.toml
 .gitignore
 .vscode
 profile.pb.gz
+*BISMUTH*
+archive

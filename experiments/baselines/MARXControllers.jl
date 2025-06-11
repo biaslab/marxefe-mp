@@ -170,7 +170,7 @@ function MPC(agent::MARXController, controls)
         η_t, μ_t, Ψ_t = posterior_predictive(agent, x_t)
 
         # Calculate and accumulate EFE
-        J += (μ_t - m_star)'*(μ_t - m_star) + u_t'*agent.Υ*u_t
+        J += 1/2*(μ_t - m_star)'*(μ_t - m_star) + 1/2*u_t'*agent.Υ*u_t
         
         # Update previous 
         ybuffer = backshift(ybuffer, μ_t)        
@@ -190,10 +190,11 @@ function minimizeMPC(agent::MARXController; u_0=nothing, time_limit=10, verbose=
                          iterations=10_000)
 
     # Objective function
-    J(u) = MPC(agent, u)
+    C(u) = MPC(agent, u)
+    gradC(J,u) = ForwardDiff.gradient!(J,C,u)
 
     # Constrained minimization procedure
-    results = optimize(J, control_lims..., u_0, Fminbox(LBFGS()), opts, autodiff=:forward)
+    results = optimize(C, gradC, control_lims..., u_0, Fminbox(LBFGS()), opts)
 
     return Optim.minimizer(results)
 end

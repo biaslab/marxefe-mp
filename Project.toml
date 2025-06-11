@@ -1,6 +1,8 @@
 [deps]
+BayesBase = "b4ee3484-f114-42fe-b91c-797d54a0c67e"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DomainSets = "5b8099bc-c8ec-5219-889f-1d9e522a28bf"
+ExponentialFamily = "62312e5e-252a-4322-ace9-a5f4bf9b357b"
 FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"

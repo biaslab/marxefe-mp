@@ -78,7 +78,7 @@ function BayesBase.prod(::BayesBase.ClosedProd, left::AbstractMvNormal, right::M
     return MvNormalMeanCovariance(μ,Σ)
 end
 
-BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::AbstractMvNormal) = prod(ClosedProd(), right, left)
+BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::AbstractMvNormal) = BayesBase.prod(ClosedProd(), right, left)
     
 function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::unBoltzmann)    
     if ndims(left) != ndims(right); error("Dimensionalities of MvLocationScaleT and Boltzmann dists are not the same."); end
@@ -89,21 +89,21 @@ function BayesBase.prod(::BayesBase.ClosedProd, left::MvLocationScaleT, right::u
                          iterations=10)
 
     # Laplace approximation
-    # @info "Starting Laplace approximation"
+    # @info "Laplace approximation.."
     # @info "Left = ", params(left)
 
     Q(y) = -logpdf(left, y) - right.G(y)
     gradQ(J,y) = ForwardDiff.gradient!(J,Q,y)
     results = optimize(Q, gradQ, mean(left), LBFGS(), opts)
     y_map = Optim.minimizer(results)
-    S_lap = ForwardDiff.hessian(Q,y_map)
-
-    if any(diag(S_lap) .< 1e-6); S_lap = proj2psd(S_lap); end
+    P_lap = ForwardDiff.hessian(Q,y_map)
+    P_lap = proj2psd(P_lap);
+    # @info "Done."
 
     # @info "y_map = ", y_map
     # @info "S_lap = ", S_lap
     
-    return MvNormalMeanCovariance(y_map,S_lap)
+    return MvNormalMeanPrecision(y_map,P_lap)
 end
 
 BayesBase.prod(::BayesBase.ClosedProd, left::unBoltzmann, right::MvLocationScaleT) = prod(ClosedProd(), right, left)

@@ -27,10 +27,10 @@ mutable struct FieldBot
         Dy = 2
 
         # State transition
-        A = [1. 0. Δt 0.;
-             0. 1. 0. Δt;
-             0. 0. 1. 0.;
-             0. 0. 0. 1.]
+        A = [1.0  0.0   Δt  0.0;
+             0.0  1.0  0.0   Δt;
+             0.0  0.0  0.9  0.0;
+             0.0  0.0  0.0  0.9]
 
         # Control matrix
         B = [0. 0.;
