@@ -12,8 +12,8 @@
     Dy = length(y_k)
     Dx = length(x_k)
 
-    M_ = inv(x_k*x_k' + diagm(1e-12*ones(Dx)))*(x_k*y_k')
-    Λ_ = x_k*x_k' + diagm(1e-12*ones(Dx))
+    Λ_ = x_k*x_k' + diagm(1e-8*ones(Dx))
+    M_ = inv(Λ_)*(x_k*y_k')
     Ω_ = zeros(Dy,Dy)
     ν_ = 2 - Dx + Dy
 
@@ -49,9 +49,9 @@ end
     return Uninformative()
 end
 
-@rule MARX(:Φ, Marginalisation) (q_out::AbstractMvNormal, 
-                                 q_outprev1::Union{PointMass,AbstractMvNormal},
-                                 q_outprev2::Union{PointMass,AbstractMvNormal}, 
+@rule MARX(:Φ, Marginalisation) (q_out::Union{AbstractMvNormal,unBoltzmann}, 
+                                 q_outprev1::Union{PointMass,AbstractMvNormal,unBoltzmann},
+                                 q_outprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
                                  q_in::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
                                  q_inprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
                                  q_inprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, ) = begin 

@@ -25,8 +25,10 @@
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -58,8 +60,10 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -91,8 +95,10 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy,ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -124,8 +130,10 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -157,8 +165,10 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -190,8 +200,10 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -223,24 +235,26 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end                                 
 
-@rule MARX(:in, Marginalisation) (q_out::unBoltzmann, 
-                                  q_outprev1::AbstractMvNormal, 
-                                  q_outprev2::PointMass, 
-                                  q_inprev1::unBoltzmann, 
-                                  q_inprev2::PointMass, 
+@rule MARX(:in, Marginalisation) (q_out::Union{PointMass,unBoltzmann}, 
+                                  q_outprev1::Union{AbstractMvNormal,unBoltzmann}, 
+                                  q_outprev2::Union{AbstractMvNormal,PointMass}, 
+                                  q_inprev1::Union{PointMass,unBoltzmann}, 
+                                  q_inprev2::Union{PointMass,unBoltzmann},
                                   q_Φ::MatrixNormalWishart, ) = begin
  
     m_star = mode(q_out)
+    Dy = length(m_star)
     S_star = 1e-1*diagm(ones(Dy))
     M,Λ,Ω,ν = params(q_Φ)
-    Dy = length(m_star)
-    Du = length(mean(q_inprev1))
+    Du = length(mode(q_inprev1))
                             
     function G(u)
 
@@ -257,23 +271,25 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end    
 
-@rule MARX(:in, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal}, 
-                                  q_outprev1::Union{PointMass,AbstractMvNormal}, 
-                                  q_outprev2::Union{PointMass,AbstractMvNormal}, 
-                                  q_inprev1::unBoltzmann, 
-                                  q_inprev2::Union{PointMass,AbstractMvNormal}, 
+@rule MARX(:in, Marginalisation) (q_out::AbstractMvNormal, 
+                                  q_outprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                  q_outprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                  q_inprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                  q_inprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
                                   q_Φ::MatrixNormalWishart, ) = begin 
 
     m_star,S_star = mean_cov(q_out)
     M,Λ,Ω,ν = params(q_Φ)
     Dy = length(m_star)
-    Du = length(mean(q_inprev1))
+    Du = length(mode(q_inprev1))
                             
     function G(u)
 
@@ -290,23 +306,26 @@ end
 
         # Cross entropy
         CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
 
-@rule MARX(:in, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal}, 
+@rule MARX(:in, Marginalisation) (q_out::PointMass, 
                                   q_outprev1::Union{PointMass,AbstractMvNormal}, 
                                   q_outprev2::Union{PointMass,AbstractMvNormal}, 
-                                  q_inprev1::unBoltzmann, 
-                                  q_inprev2::unBoltzmann, 
+                                  q_inprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                  q_inprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
                                   q_Φ::MatrixNormalWishart, ) = begin 
                                     
-    m_star,S_star = mean_cov(q_out)
-    M,Λ,Ω,ν = params(q_Φ)
+    m_star = mode(q_out)
     Dy = length(m_star)
-    Du = length(mean(q_inprev1))
+    S_star = 1e-12*diagm(ones(Dy))
+    M,Λ,Ω,ν = params(q_Φ)
+    Du = length(mode(q_inprev1))
                             
     function G(u)
 
@@ -322,9 +341,11 @@ end
         MI = -1/2*logdet(Σ)
 
         # Cross entropy
-        CE = 1/2*η/(η-2)*tr(inv(S_star)*Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        CE = 1/2*η/(η-2)*tr(S_star\Σ) + 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
+        # QC = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star)
 
         return MI + CE
+        # return QC
     end
     return unBoltzmann(G,Dy, ProductDomain([u_lims[1]..u_lims[2] for _ in 1:Du]))
 end
@@ -545,11 +566,11 @@ end
     return Uninformative()
 end
 
-@rule MARX(:inprev2, Marginalisation) (q_out::AbstractMvNormal, 
-                                       q_outprev1::Union{PointMass,AbstractMvNormal}, 
-                                       q_outprev2::Union{PointMass,AbstractMvNormal}, 
-                                       q_in::unBoltzmann, 
-                                       q_inprev1::unBoltzmann, 
+@rule MARX(:inprev2, Marginalisation) (q_out::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                       q_outprev1::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                       q_outprev2::Union{PointMass,AbstractMvNormal,unBoltzmann}, 
+                                       q_in::Union{PointMass,unBoltzmann}, 
+                                       q_inprev1::Union{PointMass,unBoltzmann}, 
                                        q_Φ::MatrixNormalWishart, ) = begin 
 
     # m_star,S_star = mean_cov(q_out)

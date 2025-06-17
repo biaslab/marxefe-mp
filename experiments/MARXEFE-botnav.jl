@@ -1,6 +1,6 @@
-using Pkg
-Pkg.activate("..")
-Pkg.instantiate()
+# using Pkg
+# Pkg.activate("..")
+# Pkg.instantiate()
 
 using Revise
 using Colors
@@ -56,34 +56,34 @@ end
     y_[1] ~ MARX(y_tmin1,y_tmin2,u_[1],u_tmin1,u_tmin2,Φ)
     y_[2] ~ MARX(y_[1],y_tmin1,u_[2],u_[1],u_tmin1,Φ)
 
-    y_[1] ~ MvNormalMeanCovariance(m_star,S_star)
-    y_[2] ~ MvNormalMeanCovariance(m_star,S_star)
+    # y_[1] ~ MvNormalMeanCovariance(m_star,S_star)
+    # y_[2] ~ MvNormalMeanCovariance(m_star,S_star)
 
     for t = 3:len_horizon
 
         u_[t] ~ MvNormalMeanPrecision(zeros(2),Υ)
         y_[t] ~ MARX(y_[t-1],y_[t-2],u_[t],u_[t-1],u_[t-2],Φ)
-        y_[t] ~ MvNormalMeanCovariance(m_star,S_star)
+        # y_[t] ~ MvNormalMeanCovariance(m_star,S_star)
     end
     
     # Goal prior at final horizon point
-    # y_[len_horizon] ~ MvNormalMeanCovariance(m_star,S_star)
+    y_[len_horizon] ~ MvNormalMeanCovariance(m_star,S_star)
 end
 
-posterior_predictive(x_t,M,Λ,Ω,ν,Dx,Dy) = (ν-Dy+1, M'*x_t, 1/(ν-Dy+1)*Ω*(1+x_t'*inv(Λ)*x_t))
+posterior_predictive(x_t,M,Λ,Ω,ν,Dx,Dy) = ( ν-Dy+1, M'*x_t, 1/(ν-Dy+1) * Ω * (1 + x_t'*inv(Λ)*x_t) )
 function logevidence(y,x,M,Λ,Ω,ν,Dx,Dy)
     η, μ, Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)
     return -1/2*(Dy*log(η*π) +logdet(Σ) - 2*logmultigamma(Dy, (η+Dy)/2) + 2*logmultigamma(Dy, (η+Dy-1)/2) + (η+Dy)*log(1 + 1/η*(y-μ)'*inv(Σ)*(y-μ)) )
 end
 
 # Trial number (saving id)
-trialnum = 01
+trialnum = 13
 
 # Time
 Δt = 0.2
-len_trial = 1000
+len_trial = 5_000
 tsteps = range(0, step=Δt, length=len_trial)
-len_horizon = 2;
+len_horizon = 3;
 
 # Dimensionalities
 Mu = 2
@@ -95,7 +95,7 @@ Dz = 4
 
 # Parameters
 σ = 1e-12*ones(Dy)
-ρ = 1e-4*ones(Dy)
+ρ = 1e-3*ones(Dy)
 
 # Limits of controller
 global u_lims = (-1.0, 1.0)
@@ -105,7 +105,7 @@ z_0 = [0., 0., 0., 0.]
 
 # Goal prior parameters
 m_star = [0., 1.]
-S_star = 1e-1diagm(ones(Dy))
+S_star = 1e-6diagm(ones(Dy))
 goal = MvNormalMeanCovariance(m_star, S_star)
 
 # Prior parameters
@@ -113,18 +113,17 @@ goal = MvNormalMeanCovariance(m_star, S_star)
 Ω0 = 1e0*diagm(ones(Dy))
 Λ0 = 1e-2*diagm(ones(Dx))
 M0 = ones(Dx,Dy)/(Dx*Dy)
-Υ  = 1e-12*diagm(ones(Dy));
-# M0,Λ0,Ω0,ν0 = params(results.posteriors[:Φ])
+Υ  = 1e-12*diagm(ones(Dy))
 
 # Start robot
 fbot  = FieldBot(ρ,σ, Δt=Δt, control_lims=u_lims)
 
 # Preallocate
-z_sim   = zeros(Dz,len_trial)
-y_sim   = zeros(Dy,len_trial)
-u_sim   = zeros(Du,len_trial)
-F_sim   = zeros(len_trial)
-G_sim   = zeros(len_trial)
+z_sim = zeros(Dz,len_trial)
+y_sim = zeros(Dy,len_trial)
+u_sim = zeros(Du,len_trial)
+F_sim = zeros(len_trial)
+G_sim = zeros(len_trial)
 
 plans_m = zeros(Dy,len_horizon,len_trial)
 plans_S = repeat(diagm(ones(Dy)), outer=[1, 1, len_horizon, len_trial])
@@ -140,17 +139,26 @@ Ms = zeros(Dx,Dy,len_trial)
 νs = zeros(len_trial)
 
 # Fix starting state
-z_prev = z_0
-M_kmin1  = M0
-Λ_kmin1  = Λ0
-Ω_kmin1  = Ω0
-ν_kmin1  = ν0
+z_prev  = z_0
+M_kmin1 = M0
+Λ_kmin1 = Λ0
+Ω_kmin1 = Ω0
+ν_kmin1 = ν0
 
 planres = Vector{Any}(undef,len_trial)
 
 @info "Starting trial."
 for k in 1:len_trial
+# k = 2
     @info "step = $k / $len_trial"
+
+    global z_prev
+    global M_kmin1
+    global Λ_kmin1
+    global Ω_kmin1
+    global ν_kmin1
+    global ybuffer
+    global ubuffer
 
     """Interact with env"""
 
@@ -203,49 +211,37 @@ for k in 1:len_trial
     end
 
     # Feed updated beliefs, goal prior params and buffers to planning model
-    # try
-        @time results_planning = infer(
-            model = MARX_planning(M_k         = Ms[:,:,k],
-                                  Λ_k         = Λs[:,:,k],
-                                  Ω_k         = Ωs[:,:,k],
-                                  ν_k         = νs[k],
-                                  Υ           = Υ,
-                                  m_star      = m_star, 
-                                  S_star      = S_star,
-                                  len_horizon = len_horizon,),
-            data = (y_tmin1 = ybuffer[:,1],
-                    y_tmin2 = ybuffer[:,2],
-                    u_tmin1 = ubuffer[:,1],
-                    u_tmin2 = ubuffer[:,2],),
-            initialization = inits,
-            # constraints = MeanField(),
-            constraints = cons,
-            iterations = 2, 
-            options = (limit_stack_depth=100,),
-        )
-        planres[k] = results_planning
+    results_planning = infer(
+        model = MARX_planning(M_k         = Ms[:,:,k],
+                                Λ_k         = Λs[:,:,k],
+                                Ω_k         = Ωs[:,:,k],
+                                ν_k         = νs[k],
+                                Υ           = Υ,
+                                m_star      = m_star, 
+                                S_star      = S_star,
+                                len_horizon = len_horizon,),
+        data = (y_tmin1 = ybuffer[:,1],
+                y_tmin2 = ybuffer[:,2],
+                u_tmin1 = ubuffer[:,1],
+                u_tmin2 = ubuffer[:,2],),
+        initialization = inits,
+        constraints = cons,
+        iterations = 50, 
+        options = (limit_stack_depth=100,),
+    )
+    planres[k] = results_planning
 
-        # Extract action
-        if k < len_trial
-            u_sim[:,k+1] = mode(results_planning.posteriors[:u_][end][1])
-        end
+    # Extract action
+    if k < len_trial
+        u_sim[:,k+1] = mode(results_planning.posteriors[:u_][end][1])
+    end
 
-        # Store output plans
-        plans_m[:,:,k] = cat(mean.(results_planning.posteriors[:y_][end])...,dims=2)
-        plans_S[:,:,:,k] = cat(cov.(results_planning.posteriors[:y_][end])...,dims=3)
-    
-#     catch e
-#         @info e
-
-#         if k < len_trial
-#             u_sim[:,k+1] = zeros(Dy)
-#         end
-#     end
+    # Store output plans
+    plans_m[:,:,k] = cat(mode.(results_planning.posteriors[:y_][end])...,dims=2)
+    plans_S[:,:,:,k] = cat(cov.(results_planning.posteriors[:y_][end])...,dims=3)
 
     # Update input buffer
-    if k < len_trial
-        ubuffer = backshift(ubuffer,u_sim[:,k+1])
-    end
+    if k < len_trial; ubuffer = backshift(ubuffer,u_sim[:,k+1]); end
 
     """Predict next observation"""
 
@@ -263,7 +259,7 @@ end
 # Save 
 trialnumpad = lpad(trialnum, 3, '0')
 jldsave("experiments/results/MARXEFE-botnav-trialnum$trialnumpad.jld2"; 
-    z_0, z_sim, u_sim, y_sim, 
+    z_0, z_sim, u_sim, y_sim, F_sim, G_sim,
     Ms, Λs, Ωs, νs, Υ, 
     plans_m, plans_S, preds_m, preds_S, 
     goal, len_horizon, len_trial)
@@ -291,10 +287,18 @@ savefig("experiments/figures/MARXEFE-botnav-trajectories-$trialnumpad.png")
 
 """ Deep checks """
 
+function prednext(u; tpoint=3)
+    M = Ms[:,:,tpoint]
+    Λ = Λs[:,:,tpoint]
+    Ω = Ωs[:,:,tpoint]
+    ν = νs[tpoint]
+    x = [y_sim[:,tpoint:-1:tpoint-1][:]; u; u_sim[:,tpoint-1:-1:tpoint-Mu][:]]           
+    return posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)                                                                                                                                       
+end
+
 function G(u; tpoint=3)
-    M,Λ,Ω,ν = params(planres[tpoint].posteriors[:Φ][end])                                                                                                                                    
-    x = [y_sim[:,tpoint-1:-1:tpoint-My][:]; u; u_sim[:,tpoint-1:-1:tpoint-Mu][:]]           
-    η,μ,Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)                                                                                                                                       
+    
+    η,μ,Σ = prednext(u,tpoint=tpoint)
 
     # Mutual information
     MI = -1/2*logdet(Σ)
@@ -302,50 +306,55 @@ function G(u; tpoint=3)
     # Cross entropy
     CE = 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star) +1/2*η/(η-2)*tr(S_star\Σ)
 
-    return MI+CE, η,μ,Σ
+    return MI+CE
 end
 
 function CE(u; tpoint=3)
-    M,Λ,Ω,ν = params(planres[tpoint].posteriors[:Φ][end])                                                                                                                                    
-    x = [y_sim[:,tpoint-1:-1:tpoint-My][:]; u; u_sim[:,tpoint-1:-1:tpoint-Mu][:]]           
-    η,μ,Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)                                                                                                                                       
+    η,μ,Σ = prednext(u,tpoint=tpoint)
 
     # Cross entropy
     return 1/2*(μ-m_star)'*inv(S_star)*(μ-m_star) + 1/2*η/(η-2)*tr(S_star\Σ)
 end
 
 function MI(u; tpoint=3)
-    M,Λ,Ω,ν = params(planres[tpoint].posteriors[:Φ][end])                                                                                                                                    
-    x = [y_sim[:,tpoint-1:-1:tpoint-My][:]; u; u_sim[:,tpoint-1:-1:tpoint-Mu][:]]           
-    η,μ,Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)                                                                                                                                       
+    η,μ,Σ = prednext(u,tpoint=tpoint)
 
     # Mutual information
     return -1/2*logdet(Σ)
 end
 
 function QC(u; tpoint=3)
-    M,Λ,Ω,ν = params(planres[tpoint].posteriors[:Φ][end])                                                                                                                                    
-    x = [y_sim[:,tpoint-1:-1:tpoint-My][:]; u; u_sim[:,tpoint-1:-1:tpoint-Mu][:]]           
-    η,μ,Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)                                                                                                                                       
+    η,μ,Σ = prednext(u,tpoint=tpoint)
 
     # Cross entropy
     return 1/2*(μ-m_star)'*(μ-m_star) 
 end
 
 # Plot plans at a certain timepoint
-tpoint = 5
+tpoint = 10
 clrs = ["orange", "purple", "blue"]
-_,η,μ,Σ = G(u_sim[:,tpoint], tpoint=tpoint)
 scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
 scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", marker=:star, color="green", markersize=5)
-plot!([z_sim[1,tpoint-2:tpoint]], [z_sim[2,tpoint-2:tpoint]], linewidth=3, label="system path", color="blue")
-plot!([z_sim[1,tpoint]; μ[1]], [z_sim[2,tpoint]; μ[2]], color="red")
-covellipse!(μ, η/(η-2)*Σ, n_std=1, alpha=0.1, fillalpha=0.2, color="red")
-for tt in 1:len_horizon
-    scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="y_$tt", color=clrs[tt])
-    covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.5^tt, color=clrs[tt])
-end
-plot!()
+covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, linecolor="red", color="red")
+scatter!([y_sim[1,tpoint-1:tpoint]], [y_sim[2,tpoint-1:tpoint]], color="black", alpha=0.5, markersize=5)
+plot!([z_sim[1,tpoint-2:tpoint]], [z_sim[2,tpoint-2:tpoint]], linewidth=3, label="path", color="blue")
+plot!(aspect_ratio=:equal)
+
+@info u_sim[:,tpoint]
+η1,μ1,Σ1 = prednext(u_sim[:,tpoint], tpoint=tpoint)
+plot!([z_sim[1,tpoint]; μ1[1]], [z_sim[2,tpoint]; μ1[2]], color="red")
+# covellipse!(μ1, η1/(η1-2)*Σ1, n_std=1, alpha=0.1, fillalpha=0.2, color="red")
+@info 1/2*(μ1 - m_star)'*(μ1 - m_star)
+
+η2,μ2,Σ2 = prednext([1.,1.], tpoint=tpoint)
+plot!([z_sim[1,tpoint]; μ2[1]], [z_sim[2,tpoint]; μ2[2]], color="magenta")
+@info 1/2*(μ2 - m_star)'*(μ2 - m_star)
+
+# covellipse!(μ2, η2/(η2-2)*Σ2, n_std=1, alpha=0.1, fillalpha=0.2, color="magenta")
+# for tt in 1:len_horizon
+#     scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="y_$tt", color=clrs[tt])
+#     covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.5^tt, color=clrs[tt])
+# end
 savefig("experiments/figures/MARXEFE-botnav-plans-$trialnumpad.png")
 
 # Inspect q(u_t)
@@ -353,15 +362,13 @@ num_u1 = 101
 num_u2 = 81
 u1 = range(u_lims[1], stop=u_lims[2], length=num_u1)
 u2 = range(u_lims[1], stop=u_lims[2], length=num_u2)
-lMP = zeros(num_u1,num_u2)
 lFE = zeros(num_u1,num_u2)
 lCE = zeros(num_u1,num_u2)
 lMI = zeros(num_u1,num_u2)
 lQC = zeros(num_u1,num_u2)
 for (ii,ui) in enumerate(u1)
     for (jj,uj) in enumerate(u2)
-        lMP[ii,jj] = planres[tpoint].posteriors[:u_][end][1].G([ui,uj])
-        lFE[ii,jj],_,_,_ = G([ui,uj],tpoint=tpoint)
+        lFE[ii,jj] = G( [ui,uj],tpoint=tpoint)
         lCE[ii,jj] = CE([ui,uj],tpoint=tpoint)
         lMI[ii,jj] = MI([ui,uj],tpoint=tpoint)
         lQC[ii,jj] = QC([ui,uj],tpoint=tpoint)
@@ -369,15 +376,14 @@ for (ii,ui) in enumerate(u1)
 end
 u_star = argmin(lFE)
 u_ = [u1[u_star[1]], u2[u_star[2]]]
-p11 = heatmap(u1,u2,lMP', cmap=:jet)
 p21 = heatmap(u1,u2,lFE', cmap=:jet)
-p31 = heatmap(u1,u2,lQC', cmap=:jet)
-plot(p11,p21,p31,layout=(3,1), size=(600,800))
 scatter!([u_[1]], [u_[2]], color=:white, markersize=10)
+p22 = heatmap(u1,u2,lQC', cmap=:jet)
+plot(p21,p22,layout=(3,1), size=(600,800))
 savefig("experiments/figures/MARXEFE-botnav-EFE-$trialnumpad.png")
 
 @info "Best action = " u_
-@info "Taken action = " u_sim[:,tpoint+1]
+@info "Taken action = " u_sim[:,tpoint]
 
 tpoint = 20
 function Jforw(y)
@@ -411,3 +417,39 @@ heatmap(y1,y2, Ly', cmap=:jet)
 y_min = argmin(Ly)
 y_star = [y1[y_min[1]], y2[y_min[2]]]
 @info y_star
+
+anim = @animate for tpoint in [3:30; 31:3:100; 100:10:len_trial]
+
+    η,μ,Σ = prednext(u_sim[:,tpoint], tpoint=tpoint)
+    p101 = scatter([z_0[1]], [z_0[2]], label="start", color="green", title="t = $tpoint / $len_trial", markersize=5)
+    scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", marker=:star, color="green", markersize=5)
+    covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, linecolor="red", color="red")
+    scatter!([y_sim[1,tpoint-2:tpoint]], [y_sim[2,tpoint-2:tpoint]], color="black", alpha=0.5, markersize=5)
+    plot!([z_sim[1,tpoint-2:tpoint]], [z_sim[2,tpoint-2:tpoint]], linewidth=3, label="system path", color="blue")
+    plot!([z_sim[1,tpoint]; μ[1]], [z_sim[2,tpoint]; μ[2]], color="red")
+    covellipse!(μ, η/(η-2)*Σ, n_std=1, alpha=0.1, fillalpha=0.2, color="red")
+    for tt in 1:len_horizon
+        scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="y_$tt", color=clrs[tt])
+        covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.5^tt, color=clrs[tt])
+    end
+    plot!(xlims=(-3,3),ylims=(-3,3))
+
+    # lFE = zeros(num_u1,num_u2)
+    # lQC = zeros(num_u1,num_u2)
+    # for (ii,ui) in enumerate(u1)
+    #     for (jj,uj) in enumerate(u2)
+    #         lFE[ii,jj] = G([ui,uj],tpoint=tpoint)
+    #         lQC[ii,jj] = QC([ui,uj],tpoint=tpoint)
+    #     end
+    # end
+    # p102 = heatmap(u1,u2,lFE', cmap=:jet)
+    # u_star = argmin(lFE)
+    # u_ = [u1[u_star[1]], u2[u_star[2]]]
+    # scatter!([u_[1]], [u_[2]], color=:white, markersize=10)
+
+    # p103 = heatmap(u1,u2,lQC', cmap=:jet)
+    
+    # plot(p101,p102,p103, layout=(3,1), size=(600,900))
+end
+gif(anim, "experiments/figures/MARXEFE-botnav-trial-$trialnumpad.gif", fps=1)
+

@@ -25,15 +25,19 @@ includet("envs/Robots.jl"); using. Robots
 includet("baselines/MARXControllers.jl"); using. MARXControllers
 includet("../src/util.jl");
 
+function logevidence(y,x,M,Λ,Ω,ν,Dx,Dy)
+    η, μ, Σ = posterior_predictive(x,M,Λ,Ω,ν,Dx,Dy)
+    return -1/2*(Dy*log(η*π) +logdet(Σ) - 2*logmultigamma(Dy, (η+Dy)/2) + 2*logmultigamma(Dy, (η+Dy-1)/2) + (η+Dy)*log(1 + 1/η*(y-μ)'*inv(Σ)*(y-μ)) )
+end
 
 # Trial number (saving id)
-experiment_ids = 1
+experiment_ids = 13
 
 # Time
 Δt = 0.2
-len_trial = 1000
+len_trial = 10_000
 tsteps = range(0, step=Δt, length=len_trial)
-len_horizon = 4;
+len_horizon = 3;
 
 # Dimensionalities
 Mu = 2
@@ -44,12 +48,12 @@ Dx = My*Dy + Mu*Du
 Dz = 4
 
 # Setpoint (desired observation)
-m_star = [1., 1.]
-S_star = 0.5*diagm(ones(Dy))
+m_star = [0., 1.]
+S_star = 1e-6*diagm(ones(Dy))
 goal = MvNormal(m_star, S_star)
 
 # Parameters
-σ = 1e-4*ones(Dy)
+σ = 1e-12*ones(Dy)
 ρ = 1e-3*ones(Dy)
 
 # Prior parameters
@@ -57,15 +61,15 @@ goal = MvNormal(m_star, S_star)
 Ω0 = 1e0*diagm(ones(Dy))
 Λ0 = 1e-2*diagm(ones(Dx))
 M0 = ones(Dx,Dy)/(Dx*Dy)
-Υ  = 1e-12*diagm(ones(Dy));
+Υ  = 1e-12*diagm(ones(Dy))
 
 # Limits of controller
 u_lims = (-1.0, 1.0)
 opts = Optim.Options(time_limit=1.,
-                     iterations=100)
+                     iterations=1000)
 
 # Initial state
-z_0 = [-1., -1., 0., 0.]
+z_0 = [0., 0., 0., 0.]
 
 # @showprogress for nn in experiment_ids
     nn = experiment_ids
@@ -110,12 +114,6 @@ z_0 = [-1., -1., 0., 0.]
         Λs[:,:,k] = agent.Λ
         Ωs[:,:,k] = agent.Ω
         νs[k]     = agent.ν
-
-        # Track free energy
-        F_sim[k] = agent.free_energy
-
-        # Track goal alignment
-        G_sim[k] = -logpdf(goal, y_sim[:,k])
         
         "Planning"
         
@@ -126,6 +124,12 @@ z_0 = [-1., -1., 0., 0.]
         # Extract minimizing control
         policy = Optim.minimizer(results)
         u_sim[:,k] = policy[1:Du]
+
+        # Calculate metrics
+        # x_k = [y_sim[:,k:-1:k-1][:]; u_sim[:,k:-1:k-2]]
+        # F_sim[k] = -logevidence(y_sim[:,k], x_k, agent.M,agent.Λ,agent.Ω,agent.ν,Dx,Dy)
+        F_sim[k] = agent.free_energy
+        G_sim[k] = -logpdf(MvNormalMeanCovariance(m_star,S_star),y_sim[:,k])
         
     end
 
