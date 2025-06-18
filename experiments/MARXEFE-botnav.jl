@@ -77,11 +77,11 @@ function logevidence(y,x,M,Λ,Ω,ν,Dx,Dy)
 end
 
 # Trial number (saving id)
-trialnum = 13
+trialnum = 100
 
 # Time
-Δt = 0.2
-len_trial = 5_000
+Δt = 0.1
+len_trial = 10_000
 tsteps = range(0, step=Δt, length=len_trial)
 len_horizon = 3;
 
@@ -94,7 +94,7 @@ Dx = My*Dy + (Mu+1)*Du
 Dz = 4
 
 # Parameters
-σ = 1e-12*ones(Dy)
+σ = 1e-6*ones(Dy)
 ρ = 1e-3*ones(Dy)
 
 # Limits of controller
@@ -113,7 +113,7 @@ goal = MvNormalMeanCovariance(m_star, S_star)
 Ω0 = 1e0*diagm(ones(Dy))
 Λ0 = 1e-2*diagm(ones(Dx))
 M0 = ones(Dx,Dy)/(Dx*Dy)
-Υ  = 1e-12*diagm(ones(Dy))
+Υ  = 1e-6*diagm(ones(Dy))
 
 # Start robot
 fbot  = FieldBot(ρ,σ, Δt=Δt, control_lims=u_lims)
@@ -150,7 +150,7 @@ planres = Vector{Any}(undef,len_trial)
 @info "Starting trial."
 for k in 1:len_trial
 # k = 2
-    @info "step = $k / $len_trial"
+    # @info "step = $k / $len_trial"
 
     global z_prev
     global M_kmin1
@@ -166,8 +166,8 @@ for k in 1:len_trial
     y_sim[:,k], z_sim[:,k] = update(fbot, z_prev, u_sim[:,k])
     z_prev = z_sim[:,k]
 
-    @info "u = " u_sim[:,k]
-    @info "z = " z_sim[:,k]
+    # @info "u = " u_sim[:,k]
+    # @info "z = " z_sim[:,k]
 
     """Infer parameters"""
 
@@ -211,7 +211,7 @@ for k in 1:len_trial
     end
 
     # Feed updated beliefs, goal prior params and buffers to planning model
-    results_planning = infer(
+    @time results_planning = infer(
         model = MARX_planning(M_k         = Ms[:,:,k],
                                 Λ_k         = Λs[:,:,k],
                                 Ω_k         = Ωs[:,:,k],
@@ -226,7 +226,7 @@ for k in 1:len_trial
                 u_tmin2 = ubuffer[:,2],),
         initialization = inits,
         constraints = cons,
-        iterations = 50, 
+        iterations = 2, 
         options = (limit_stack_depth=100,),
     )
     planres[k] = results_planning
@@ -236,23 +236,23 @@ for k in 1:len_trial
         u_sim[:,k+1] = mode(results_planning.posteriors[:u_][end][1])
     end
 
-    # Store output plans
-    plans_m[:,:,k] = cat(mode.(results_planning.posteriors[:y_][end])...,dims=2)
-    plans_S[:,:,:,k] = cat(cov.(results_planning.posteriors[:y_][end])...,dims=3)
+    # # Store output plans
+    # plans_m[:,:,k] = cat(mode.(results_planning.posteriors[:y_][end])...,dims=2)
+    # plans_S[:,:,:,k] = cat(cov.(results_planning.posteriors[:y_][end])...,dims=3)
 
-    # Update input buffer
+    # # Update input buffer
     if k < len_trial; ubuffer = backshift(ubuffer,u_sim[:,k+1]); end
 
-    """Predict next observation"""
+    # """Predict next observation"""
 
-    x_k = [ybuffer[:]; ubuffer[:]]
-    η,μ,Σ = posterior_predictive(x_k,M_kmin1,Λ_kmin1,Ω_kmin1,ν_kmin1,Dx,Dy)
-    preds_m[:,k+1] = μ
-    preds_S[:,:,k+1] = Σ*η/(η-2)
+    # x_k = [ybuffer[:]; ubuffer[:]]
+    # η,μ,Σ = posterior_predictive(x_k,M_kmin1,Λ_kmin1,Ω_kmin1,ν_kmin1,Dx,Dy)
+    # preds_m[:,k+1] = μ
+    # preds_S[:,:,k+1] = Σ*η/(η-2)
 
-    # Calculate metrics
-    F_sim[k] = -logevidence(y_sim[:,k], x_k,M_kmin1,Λ_kmin1,Ω_kmin1,ν_kmin1,Dx,Dy)
-    G_sim[k] = -logpdf(goal,y_sim[:,k])
+    # # Calculate metrics
+    # F_sim[k] = -logevidence(y_sim[:,k], x_k,M_kmin1,Λ_kmin1,Ω_kmin1,ν_kmin1,Dx,Dy)
+    # G_sim[k] = -logpdf(goal,y_sim[:,k])
 
 end
 
@@ -265,11 +265,17 @@ jldsave("experiments/results/MARXEFE-botnav-trialnum$trialnumpad.jld2";
     goal, len_horizon, len_trial)
 @info "Saved trial"
 
+
+
+""" Analyses of experiment """
+
+
+
 # Check actions
 p11 = plot(tsteps, u_sim[1,:], ylabel="u_1")
 p12 = plot(tsteps, u_sim[2,:], ylabel="u_2")
 plot(p11,p12, layout=(2,1), size=(600,600))
-savefig("experiments/figures/MARXEFE-botnav-actions-$trialnumpad.png")
+# savefig("experiments/figures/MARXEFE-botnav-actions-$trialnumpad.png")
 
 # Plot trajectories
 twin = 3:len_trial
@@ -283,9 +289,7 @@ for kk = twin
 end
 plot!(preds_m[1,twin], preds_m[2,twin], label="predictions", color="purple")
 # plot!(x_lims=[-5,15], y_lims=[-5,15])
-savefig("experiments/figures/MARXEFE-botnav-trajectories-$trialnumpad.png")
-
-""" Deep checks """
+# savefig("experiments/figures/MARXEFE-botnav-trajectories-$trialnumpad.png")
 
 function prednext(u; tpoint=3)
     M = Ms[:,:,tpoint]
@@ -331,35 +335,24 @@ function QC(u; tpoint=3)
 end
 
 # Plot plans at a certain timepoint
-tpoint = 10
-clrs = ["orange", "purple", "blue"]
-scatter([z_0[1]], [z_0[2]], label="start", color="green", markersize=5)
+tpoint = 3
+clrs = ["orange", "red", "purple"]
+scatter([z_0[1]], [z_0[2]], label="start", color="black", marker=:diamond, markersize=5)
 scatter!([mean(goal)[1]], [mean(goal)[2]], label="goal", marker=:star, color="green", markersize=5)
-covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, linecolor="red", color="red")
-scatter!([y_sim[1,tpoint-1:tpoint]], [y_sim[2,tpoint-1:tpoint]], color="black", alpha=0.5, markersize=5)
-plot!([z_sim[1,tpoint-2:tpoint]], [z_sim[2,tpoint-2:tpoint]], linewidth=3, label="path", color="blue")
-plot!(aspect_ratio=:equal)
-
-@info u_sim[:,tpoint]
-η1,μ1,Σ1 = prednext(u_sim[:,tpoint], tpoint=tpoint)
-plot!([z_sim[1,tpoint]; μ1[1]], [z_sim[2,tpoint]; μ1[2]], color="red")
-# covellipse!(μ1, η1/(η1-2)*Σ1, n_std=1, alpha=0.1, fillalpha=0.2, color="red")
-@info 1/2*(μ1 - m_star)'*(μ1 - m_star)
-
-η2,μ2,Σ2 = prednext([1.,1.], tpoint=tpoint)
-plot!([z_sim[1,tpoint]; μ2[1]], [z_sim[2,tpoint]; μ2[2]], color="magenta")
-@info 1/2*(μ2 - m_star)'*(μ2 - m_star)
-
+covellipse!(mean(goal), cov(goal), n_std=1., linewidth=3, fillalpha=0.01, linecolor="green", color="red")
+# scatter!([y_sim[1,tpoint-1:tpoint]], [y_sim[2,tpoint-1:tpoint]], color="black", alpha=0.5, markersize=5)
+scatter!([z_sim[1,tpoint]], [z_sim[2,tpoint]], linewidth=3, label="state", marker=:hexagon, color="blue")
 # covellipse!(μ2, η2/(η2-2)*Σ2, n_std=1, alpha=0.1, fillalpha=0.2, color="magenta")
-# for tt in 1:len_horizon
-#     scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="y_$tt", color=clrs[tt])
-#     covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.5^tt, color=clrs[tt])
-# end
+for tt in 1:len_horizon
+    scatter!([plans_m[1,tt,tpoint]], [plans_m[2,tt,tpoint]], label="q(y_$tt)", color=clrs[tt])
+    covellipse!(plans_m[:,tt,tpoint], plans_S[:,:,tt,tpoint], n_std=1, alpha=0.1, fillalpha=0.2, color=clrs[tt])
+end
+plot!(xlims=(-.6,.8), ylims=(-.3,1.1), aspect_ratio=:equal, size=(300,300), grid=true)
 savefig("experiments/figures/MARXEFE-botnav-plans-$trialnumpad.png")
 
 # Inspect q(u_t)
-num_u1 = 101
-num_u2 = 81
+num_u1 = 201
+num_u2 = 201
 u1 = range(u_lims[1], stop=u_lims[2], length=num_u1)
 u2 = range(u_lims[1], stop=u_lims[2], length=num_u2)
 lFE = zeros(num_u1,num_u2)

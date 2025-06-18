@@ -36,7 +36,7 @@ function pdf(p::MvLocationScaleT, x::Vector)
     return sqrt(1/( (η*π)^d*det(Σ) )) * gamma((η+d)/2)/gamma(η/2) * (1 + 1/η*(x-μ)'*inv(Σ)*(x-μ))^(-(η+d)/2)
 end
 
-function logpdf(p::MvLocationScaleT, x::Vector)
+function Distributions.logpdf(p::MvLocationScaleT, x::Vector)
     d = ndims(p)
     η, μ, Σ = params(p)
     return -d/2*log(η*π) - 1/2*logdet(Σ) +loggamma((η+d)/2) -loggamma(η/2) -(η+d)/2*log(1 + 1/η*(x-μ)'*inv(Σ)*(x-μ))

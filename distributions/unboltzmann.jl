@@ -1,11 +1,11 @@
 export unBoltzmann
 
 import BayesBase
+import Distributions
 import RxInfer
 using Optim
 using DomainSets
 using LinearAlgebra
-using Distributions
 using SpecialFunctions
 
 
@@ -75,7 +75,7 @@ function pdf(dist::unBoltzmann, u::Vector)
     return exp(-dist.G(u))
 end
 
-function logpdf(dist::unBoltzmann, u::Vector)
+function Distributions.logpdf(dist::unBoltzmann, u::Vector)
     "Evaluate energy function"
     return -dist.G(u)
 end
